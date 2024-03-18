@@ -9,6 +9,6 @@ type Execution struct {
 	JobID       uint
 	Job         *Job `json:",omitempty"`
 	CreatedAt   time.Time
-	CompletedAt time.Time `gorm:"default:null"`
-	Status      string    `gorm:"type:enum('in_progress', 'complete'); default:in_progress"`
+	CompletedAt *time.Time
+	Status      string `gorm:"type:enum('in_progress', 'complete'); default:in_progress"`
 }

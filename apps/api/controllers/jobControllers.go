@@ -7,21 +7,30 @@ import (
 	"job-scheduler/api/models"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
 func GetAllJobs(c *gin.Context) {
 	userId := c.Query("user_id")
+	isActive := c.Query("active")
 
+	var jobs []models.Job
 	m := make(map[string]interface{})
 
 	if userId != "" {
 		m["user_id"] = userId
 	}
-
-	var jobs []models.Job
-	initializers.Db.Where(m).Find(&jobs)
+	if isActive != "" {
+		if active, err := strconv.ParseBool(isActive); err == nil && active {
+			m["is_completed"] = false
+			initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where(m).Find(&jobs)
+		}
+	} else {
+		initializers.Db.Where(m).Find(&jobs)
+	}
 
 	c.JSON(http.StatusOK, jobs)
 }

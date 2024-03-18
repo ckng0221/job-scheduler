@@ -1,0 +1,14 @@
+info:
+  contact: {}
+paths:
+  /:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Health check
+      tags:
+      - Default
+swagger: "2.0"

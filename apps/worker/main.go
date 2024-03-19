@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"job-scheduler/worker/models"
+	"job-scheduler/worker/tasks"
 	"log"
 	"os"
 
@@ -57,12 +60,7 @@ func listenToQueue(queueName string) {
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
-			fmt.Println(d.Body)
-			// tasks.ProcessDocument(1)
-
-			log.Printf("Done")
-			d.Ack(false)
+			processJob(d)
 		}
 	}()
 
@@ -72,6 +70,24 @@ func listenToQueue(queueName string) {
 
 func init() {
 	godotenv.Load()
+}
+
+func processJob(d amqp.Delivery) {
+	log.Printf("Received a message: %s", d.Body)
+
+	var job models.Job
+	err := json.Unmarshal(d.Body, &job)
+
+	if err != nil {
+		fmt.Printf("%s", err)
+		return
+	}
+	go tasks.ProcessDocument(job)
+
+	defer d.Ack(false)
+
+	// fmt.Println("Execution completed.")
+	// fmt.Println("Waiting for next job.....")
 }
 
 func main() {

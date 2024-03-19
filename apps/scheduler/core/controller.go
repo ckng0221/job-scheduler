@@ -1,24 +1,28 @@
 package core
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/aptible/supercronic/cronexpr"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Job struct {
 	ID          uint
-	JobName     string `gorm:"type:varchar(255)"`
-	IsRecurring bool   `gorm:"default:false"`
+	JobName     string
+	IsRecurring bool
 	NextRunTime int64
 	UserID      uint
-	Cron        string `gorm:"type:varchar(20)"`
+	Cron        string
+	IsCompleted bool
+	IsRunning   bool
+	IsDisabled  bool
 }
 
 func getActiveJobs() []Job {
@@ -27,13 +31,13 @@ func getActiveJobs() []Job {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/jobs?active=true"
 
-	res, err := http.Get(endpoint)
+	resp, err := http.Get(endpoint)
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println("Received all active jobs")
 
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -51,61 +55,64 @@ func PublishActiveJobs() {
 		return
 	}
 
-	for i, job := range jobs {
-		// TODO: add jobs to queue
-		fmt.Println(i, job.ID)
-
-		// TODO: move this function on execution level
-		updateNextRunTime(job)
+	for _, job := range jobs {
+		publishJobToQueue(job)
 	}
 }
 
-func updateNextRunTime(job Job) {
-	fmt.Println("Updating Job ID", job.ID, "...")
-	if job.ID == 0 {
-		fmt.Println("Job ID cannot be null")
+func publishJobToQueue(job Job) {
+	HOST := os.Getenv("RABBIT_MQ_HOST")
+	QUEUE := os.Getenv("JOB_QUEUE_NAME")
+
+	conn, err := amqp.Dial(HOST)
+	if err != nil {
+		fmt.Printf("%s %s", err, "Failed to connect to RabbitMQ")
+		return
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		fmt.Printf("%s %s", err, "Failed to open a channel")
+		return
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		QUEUE, // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		fmt.Printf("%s %s", err, "Failed to declare a queue")
 		return
 	}
 
-	API_BASE := os.Getenv("API_BASE_URL")
-	endpoint := API_BASE + "/scheduler/jobs/" + fmt.Sprint(job.ID)
-	payload := map[string]interface{}{}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	// Recuring job
-	if job.IsRecurring {
-		if job.Cron == "" {
-			fmt.Println("Cron cannot be empty for recurring job.")
-			return
-		}
-		cronExp, err := cronexpr.Parse(job.Cron)
-		if err != nil {
-			fmt.Println("Invalid cron expression")
-			return
-		}
-		nextTime := cronExp.Next(time.Now().UTC()).Unix()
-		nextTime2 := cronExp.Next(time.Now().UTC())
-		payload["NextRunTime"] = nextTime
-		fmt.Println("Next run time", nextTime2, "unix:", nextTime)
-	} else {
-		payload["IsCompleted"] = true
-	}
-
-	// Update
-	payloadByte, _ := json.Marshal(payload)
-	req, err := http.NewRequest(http.MethodPatch, endpoint, bytes.NewBuffer(payloadByte))
+	jobString, err := json.Marshal(&job)
 	if err != nil {
-		fmt.Println(err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("%s %s", err, "Failed to marshal job")
+		return
 	}
 
-	if resp.StatusCode == 200 {
-		fmt.Println("Updated Job ID", job.ID, ".")
-	} else {
-		fmt.Println("Failed to update Job ID", job.ID, ".")
+	err = ch.PublishWithContext(ctx,
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "text/plain",
+			Body:         jobString,
+		})
+	if err != nil {
+		fmt.Printf("%s %s", err, "Failed to publish a message")
+		return
 	}
+	log.Printf(" [x] Sent %v", job.ID)
 }

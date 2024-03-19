@@ -1,3 +1,5 @@
+github.com/aptible/supercronic v0.2.29 h1:I+3RoDspAs/ySQO+MQd6genE07csDV/ErhFOtACT5oo=
+github.com/aptible/supercronic v0.2.29/go.mod h1:84URRjD4iBPig2KhnSB5kWJIk8PTxKwH3VUSTF1xJYg=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=

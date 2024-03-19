@@ -1,0 +1,13 @@
+{
+  "name": "scheduler",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "go build .",
+    "dev": "CompileDaemon -command='./scheduler'",
+    "start": "./scheduler"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

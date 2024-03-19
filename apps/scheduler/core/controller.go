@@ -34,16 +34,22 @@ func getActiveJobs() []Job {
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		fmt.Println(err)
+		return nil
 	}
 	fmt.Println("Received all active jobs")
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
+		return nil
 	}
 
 	var jobs []Job
-	json.Unmarshal(body, &jobs)
+	err = json.Unmarshal(body, &jobs)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 
 	return jobs
 }

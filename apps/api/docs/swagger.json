@@ -1,24 +1,20 @@
 {
-    "swagger": "2.0",
-    "info": {
-        "contact": {}
-    },
-    "paths": {
-        "/": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Default"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
+  "swagger": "2.0",
+  "info": {
+    "contact": {}
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "produces": ["application/json"],
+        "tags": ["Default"],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
         }
+      }
     }
+  }
 }

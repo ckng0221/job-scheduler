@@ -1,0 +1,13 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "go build .",
+    "dev": "CompileDaemon -command='./worker'",
+    "start": "./worker"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

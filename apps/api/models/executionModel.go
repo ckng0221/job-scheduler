@@ -12,3 +12,10 @@ type Execution struct {
 	CompletedAt *time.Time
 	Status      string `gorm:"type:enum('in_progress', 'complete'); default:in_progress"`
 }
+
+type ExecutionUpdate struct {
+	JobID       *uint
+	CreatedAt   *time.Time
+	CompletedAt *time.Time
+	Status      *string
+}

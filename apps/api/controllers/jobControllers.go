@@ -26,7 +26,13 @@ func GetAllJobs(c *gin.Context) {
 	if isActive != "" {
 		if active, err := strconv.ParseBool(isActive); err == nil && active {
 			m["is_completed"] = false
-			initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where(m).Find(&jobs)
+			m["is_disabled"] = false
+			m["is_running"] = false
+			// only for current minute
+			t := time.Now()
+			currentMinute := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location())
+			nextMinute := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location()).Add(1 * time.Minute)
+			initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where(m).Find(&jobs)
 		}
 	} else {
 		initializers.Db.Where(m).Find(&jobs)
@@ -93,6 +99,7 @@ func UpdateOneJob(c *gin.Context) {
 	// get the id
 	id := c.Param("id")
 	var job models.Job
+	var jobUpate models.JobUpdate
 	initializers.Db.First(&job, id)
 
 	body, err := io.ReadAll(c.Request.Body)
@@ -100,16 +107,15 @@ func UpdateOneJob(c *gin.Context) {
 		c.AbortWithError(400, err)
 		return
 	}
-	var jobM map[string]interface{}
 
-	err = json.Unmarshal(body, &jobM)
+	err = json.Unmarshal(body, &jobUpate)
 
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
 	}
 
-	initializers.Db.Model(&job).Updates(&jobM)
+	initializers.Db.Model(&job).Updates(&jobUpate)
 
 	c.JSON(200, job)
 }

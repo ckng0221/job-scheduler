@@ -72,6 +72,7 @@ func UpdateOneExecution(c *gin.Context) {
 	// get the id
 	id := c.Param("id")
 	var execution models.Execution
+	var executionPatch models.ExecutionUpdate
 	initializers.Db.First(&execution, id)
 
 	body, err := io.ReadAll(c.Request.Body)
@@ -79,16 +80,15 @@ func UpdateOneExecution(c *gin.Context) {
 		c.AbortWithError(400, err)
 		return
 	}
-	var executionM map[string]interface{}
 
-	err = json.Unmarshal(body, &executionM)
+	err = json.Unmarshal(body, &executionPatch)
 
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
 	}
 
-	initializers.Db.Model(&execution).Updates(&executionM)
+	initializers.Db.Model(&execution).Updates(&executionPatch)
 
 	c.JSON(200, execution)
 }

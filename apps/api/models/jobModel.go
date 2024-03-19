@@ -13,4 +13,17 @@ type Job struct {
 	User        *User  `json:",omitempty"`
 	Cron        string `gorm:"type:varchar(20)"`
 	IsCompleted bool   `gorm:"default:false"`
+	IsRunning   bool   `gorm:"default:false"`
+	IsDisabled  bool   `gorm:"default:false"`
+}
+
+type JobUpdate struct {
+	JobName     *string
+	IsRecurring *bool
+	NextRunTime *int64
+	UserID      *uint
+	Cron        string
+	IsCompleted *bool
+	IsRunning   *bool
+	IsDisabled  *bool
 }

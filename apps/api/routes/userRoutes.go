@@ -16,5 +16,4 @@ func UserRoutes(r *gin.RouterGroup) {
 	r.PATCH("/users/:id", controllers.UpdateOneUser)
 	r.DELETE("/users/:id", controllers.DeleteOneUser)
 	r.POST("/users/:id/profile-picture", controllers.UploadProfilePicture)
-
 }

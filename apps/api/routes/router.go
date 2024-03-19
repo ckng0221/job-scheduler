@@ -31,6 +31,11 @@ func SetupRouter() *gin.Engine {
 	user := r.Group("/user")
 	UserRoutes(user)
 
+	// Scheduler
+	job := r.Group("/scheduler")
+	JobRoutes(job)
+	executionRoutes(job)
+
 	// Static files
 	// r.Static("/blob", "./blob")
 

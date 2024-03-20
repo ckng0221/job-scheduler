@@ -38,7 +38,7 @@ jobs:
 
       # Node
       - run: npm ci
-      - run: go mod download
+      - run: npm run install
       - run: npm run lint
       - run: npm run test
       - run: npm run build

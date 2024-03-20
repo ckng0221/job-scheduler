@@ -6,6 +6,7 @@
     "apps/*"
   ],
   "scripts": {
+    "install": "turbo install",
     "dev": "turbo dev",
     "build": "turbo build",
     "start": "turbo start",

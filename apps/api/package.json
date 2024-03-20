@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "install": "go mod download",
     "build": "go build .",
     "dev": "CompileDaemon -command='./api'",
     "test": "go test ./tests",

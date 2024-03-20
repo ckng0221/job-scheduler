@@ -82,7 +82,7 @@ func processJob(d amqp.Delivery) {
 		fmt.Printf("%s", err)
 		return
 	}
-	go tasks.ProcessDocument(job)
+	go tasks.RunCustomJob(job)
 
 	defer d.Ack(false)
 

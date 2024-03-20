@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -35,4 +36,10 @@ func Paginate(c *gin.Context) func(db *gorm.DB) *gorm.DB {
 		offset := (page - 1) * pageSize
 		return db.Offset(offset).Limit(pageSize)
 	}
+}
+
+func GetUnixMinuteRange(t time.Time) (time.Time, time.Time) {
+	currentMinute := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location())
+	nextMinute := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location()).Add(1 * time.Minute)
+	return currentMinute, nextMinute
 }

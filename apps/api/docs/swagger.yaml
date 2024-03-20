@@ -4,11 +4,11 @@ paths:
   /:
     get:
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
       summary: Health check
       tags:
-      - Default
+        - Default
 swagger: "2.0"

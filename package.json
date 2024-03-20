@@ -1,0 +1,26 @@
+{
+  "name": "job-scheduler",
+  "version": "1.0.0",
+  "description": "",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "install": "turbo install",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "start": "turbo start",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "format": "prettier . --write"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "turbo": "^1.12.5"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}

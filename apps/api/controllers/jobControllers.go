@@ -5,6 +5,7 @@ import (
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
+	"job-scheduler/api/utils"
 	"log"
 	"net/http"
 	"strconv"
@@ -29,10 +30,9 @@ func GetAllJobs(c *gin.Context) {
 			m["is_disabled"] = false
 			m["is_running"] = false
 			// only for current minute
-			t := time.Now()
-			currentMinute := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location())
-			nextMinute := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, t.Location()).Add(1 * time.Minute)
+			currentMinute, nextMinute := utils.GetUnixMinuteRange(time.Now())
 			initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where(m).Find(&jobs)
+			// initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where(m).Find(&jobs) // for test
 		}
 	} else {
 		initializers.Db.Where(m).Find(&jobs)

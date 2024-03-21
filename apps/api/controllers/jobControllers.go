@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
@@ -44,7 +45,7 @@ func GetAllJobs(c *gin.Context) {
 
 // By admin only
 func CreateJobs(c *gin.Context) {
-	var jobs []models.Job
+	var job models.Job
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -52,21 +53,34 @@ func CreateJobs(c *gin.Context) {
 		return
 	}
 
-	// var jobsM []map[string]interface{}
-	err = json.Unmarshal(body, &jobs)
-
+	err = json.Unmarshal(body, &job)
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
 	}
 
-	result := initializers.Db.Model(&jobs).Create(&jobs)
+	// Update next run time for recurring job
+	if job.IsRecurring {
+		if job.Cron == "" {
+			c.AbortWithError(422, errors.New("cron cannot be empty"))
+			return
+		}
+		// cronExp, err := cronexpr.Parse(job.Cron)
+		// if err != nil {
+		// 	c.AbortWithError(422, errors.New("invalid cron expression"))
+		// 	return
+		// }
+		// nextRunTimeUnix := cronExp.Next(time.Now().UTC()).Unix()
+		// jobM["NextRunTime"] = nextRunTimeUnix
+	}
+
+	result := initializers.Db.Model(&job).Create(&job)
 	if result.Error != nil {
 		c.AbortWithStatus(500)
 		return
 	}
 
-	c.JSON(http.StatusCreated, jobs)
+	c.JSON(http.StatusCreated, job)
 }
 
 func GetOneJob(c *gin.Context) {

@@ -10,7 +10,7 @@ type Execution struct {
 	Job         *Job `json:",omitempty"`
 	CreatedAt   time.Time
 	CompletedAt *time.Time
-	Status      string `gorm:"type:enum('in_progress', 'complete'); default:in_progress"`
+	Status      string `gorm:"type:enum('in_progress', 'complete, failed'); default:in_progress"`
 }
 
 type ExecutionUpdate struct {

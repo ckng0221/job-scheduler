@@ -12,5 +12,6 @@ func JobRoutes(r *gin.RouterGroup) {
 	r.GET("/jobs/:id", controllers.GetOneJob)
 	r.GET("/jobs/:id/executions", controllers.GetOneJobExecutions)
 	r.PATCH("/jobs/:id", controllers.UpdateOneJob)
+	r.PATCH("/jobs/:id/retrycount", controllers.UpdateOneJobRetryCount)
 	r.DELETE("/jobs/:id", controllers.DeleteOneJob)
 }

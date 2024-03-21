@@ -59,11 +59,29 @@ func updateNextRunTime(job models.Job) {
 	}
 }
 
-func updateExecutionStatus(executionId uint) {
+func updateRetryCount(job models.Job) error {
+	API_BASE := os.Getenv("API_BASE_URL")
+	endpoint := API_BASE + fmt.Sprintf("/scheduler/jobs/%s/retrycount", fmt.Sprint(job.ID))
+	payload := map[string]interface{}{}
+
+	payloadByte, _ := json.Marshal(payload)
+	resp, err := utils.PatchRequest(endpoint, payloadByte)
+
+	if resp.StatusCode == 200 {
+		fmt.Printf("Updated retry count for Job ID %v.\n", job.ID)
+	} else {
+		fmt.Printf("Faileld to update retry count for Job ID %v.\n", job.ID)
+	}
+	return err
+}
+
+type RunStatus string
+
+func updateExecutionStatus(executionId uint, status string) {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/executions/" + fmt.Sprint(executionId)
 	payload := map[string]interface{}{
-		"Status":      "complete",
+		"Status":      status,
 		"CompletedAt": time.Now().UTC(),
 	}
 	payloadByte, _ := json.Marshal(payload)
@@ -81,7 +99,7 @@ func updateExecutionStatus(executionId uint) {
 }
 
 func updateJobExecution(job models.Job, executionId uint) {
-	updateExecutionStatus(executionId)
+	updateExecutionStatus(executionId, "complete")
 	updateNextRunTime(job)
 }
 
@@ -104,7 +122,7 @@ func checkJobStatusRunning(job models.Job) bool {
 	return job.IsRunning
 }
 
-func createExecution(job models.Job) uint {
+func createExecution(job models.Job) (uint, error) {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/executions"
 
@@ -117,11 +135,13 @@ func createExecution(job models.Job) uint {
 	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(payloadByte))
 	if err != nil {
 		fmt.Println(err)
+		return 0, err
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
+		return 0, err
 	}
 
 	var executions []models.Execution
@@ -132,14 +152,14 @@ func createExecution(job models.Job) uint {
 	} else {
 		fmt.Println("Failed to create execution for Job", job.ID, ".")
 	}
-	return executions[0].ID
+	return executions[0].ID, err
 }
 
-func updateJobRunning(job models.Job) {
+func updateJobRunning(job models.Job, isRunning bool) {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/jobs/" + fmt.Sprint(job.ID)
 	payload := map[string]interface{}{
-		"IsRunning": true,
+		"IsRunning": isRunning,
 	}
 	payloadByte, _ := json.Marshal(payload)
 

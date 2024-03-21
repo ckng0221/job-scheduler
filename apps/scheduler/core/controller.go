@@ -23,6 +23,7 @@ type Job struct {
 	IsCompleted bool
 	IsRunning   bool
 	IsDisabled  bool
+	RetryCount  uint16
 }
 
 func getActiveJobs() []Job {

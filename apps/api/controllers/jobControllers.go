@@ -17,6 +17,7 @@ import (
 func GetAllJobs(c *gin.Context) {
 	userId := c.Query("user_id")
 	isActive := c.Query("active")
+	MaxRetryCount := 4
 
 	var jobs []models.Job
 	m := make(map[string]interface{})
@@ -31,8 +32,8 @@ func GetAllJobs(c *gin.Context) {
 			m["is_running"] = false
 			// only for current minute
 			currentMinute, nextMinute := utils.GetUnixMinuteRange(time.Now())
-			initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where(m).Find(&jobs)
-			// initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where(m).Find(&jobs) // for test
+			initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where("retry_count <= ?", MaxRetryCount).Where(m).Find(&jobs)
+			// initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where("retry_count < ?", MaxRetryCount).Where(m).Find(&jobs) // for test
 		}
 	} else {
 		initializers.Db.Where(m).Find(&jobs)
@@ -118,6 +119,20 @@ func UpdateOneJob(c *gin.Context) {
 	initializers.Db.Model(&job).Updates(&jobUpate)
 
 	c.JSON(200, job)
+}
+
+func UpdateOneJobRetryCount(c *gin.Context) {
+	id := c.Param("id")
+
+	var job models.Job
+	initializers.Db.First(&job, id)
+	// Optimistic lock
+	result := initializers.Db.Model(&job).Where("id = ? AND retry_count = ?", id, job.RetryCount).Update("retry_count", job.RetryCount+1)
+	if result.Error != nil {
+		c.AbortWithStatus(500)
+	}
+
+	c.Status(202)
 }
 
 func DeleteOneJob(c *gin.Context) {

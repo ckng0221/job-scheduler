@@ -7,6 +7,7 @@ import (
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
+	"job-scheduler/api/utils"
 	"log"
 	"net/http"
 	"os"
@@ -32,10 +33,10 @@ func GetAllJobs(c *gin.Context) {
 			m["is_completed"] = false
 			m["is_disabled"] = false
 			m["is_running"] = false
-			// only for current minute
-			// currentMinute, nextMinute := utils.GetUnixMinuteRange(time.Now())
-			// initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where("retry_count <= ?", MaxRetryCount).Where(m).Find(&jobs)
-			initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where("retry_count < ?", MaxRetryCount).Where(m).Find(&jobs) // for test
+			currentMinute, nextMinute := utils.GetUnixMinuteRange(time.Now())
+			// For one-time job, only check if it is within the time boundary
+			// For recurring job, will check as long as less then current time
+			initializers.Db.Where("retry_count < ?", MaxRetryCount).Where(m).Where("(is_recurring = true AND next_run_time <= ?) OR (is_recurring = false AND next_run_time >= ? AND next_run_time < ?)", time.Now().Unix(), currentMinute.Unix(), nextMinute.Unix()).Find(&jobs)
 		}
 	} else {
 		initializers.Db.Where(m).Find(&jobs)

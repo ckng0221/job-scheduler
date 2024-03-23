@@ -66,8 +66,13 @@ func runJob(job models.Job) error {
 		fmt.Println(err)
 		return err
 	}
+
+	if job.TaskPath == "" {
+		fmt.Println("No script to run. Skipped.")
+		return nil
+	}
+
 	// Hardcoded relative filelocation
-	fmt.Println("path", job.TaskPath)
 	err = runScript(job.TaskPath)
 	if err != nil {
 		fmt.Println(err)

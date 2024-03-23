@@ -15,7 +15,8 @@ type Job struct {
 	IsCompleted bool   `gorm:"default:false"`
 	IsRunning   bool   `gorm:"default:false"`
 	IsDisabled  bool   `gorm:"default:false"`
-	RetryCount  uint16
+	RetryCount  uint16 `gorm:"default:0"`
+	TaskPath    string
 }
 
 type JobUpdate struct {

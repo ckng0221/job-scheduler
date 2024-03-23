@@ -13,6 +13,7 @@ type Job struct {
 	IsRunning   bool
 	IsDisabled  bool
 	RetryCount  uint16
+	TaskPath    string
 }
 
 type Execution struct {

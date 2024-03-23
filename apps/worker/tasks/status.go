@@ -67,10 +67,10 @@ func updateRetryCount(job models.Job) error {
 	payloadByte, _ := json.Marshal(payload)
 	resp, err := utils.PatchRequest(endpoint, payloadByte)
 
-	if resp.StatusCode == 200 {
+	if resp.StatusCode == 202 {
 		fmt.Printf("Updated retry count for Job ID %v.\n", job.ID)
 	} else {
-		fmt.Printf("Faileld to update retry count for Job ID %v.\n", job.ID)
+		fmt.Printf("Failed to update retry count for Job ID %v.\n", job.ID)
 	}
 	return err
 }

@@ -22,8 +22,8 @@ import {
 } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
-import { IJob, submitJob } from "../api/job";
-import { Theme, useTheme } from "@mui/material/styles";
+import { IJob, submitJob, uploadTaskScript } from "../api/job";
+import { Theme, styled, useTheme } from "@mui/material/styles";
 import { DateTimeValidationError } from "@mui/x-date-pickers";
 
 function generateCronExpression({
@@ -99,6 +99,9 @@ export default function ScheduleForm() {
   const [isEveryMonth, setIsEveryMonth] = React.useState(true);
   const [selectedMonths, setSelectedMonths] = React.useState<string[]>([]);
   const [selectedDates, setSelectedDates] = React.useState<string[]>([]);
+  // file upload
+  const [file, setFile] = React.useState<any>();
+  const fileRef = React.useRef<any>(null);
 
   const errorMessage = React.useMemo(() => {
     switch (error) {
@@ -148,12 +151,17 @@ export default function ScheduleForm() {
       payload["Cron"] = cronExpression;
     }
 
-    const res = await submitJob(payload); // FIXME: temp
-    // let res: any; // FIXME: temp
+    const res = await submitJob(payload);
     if (res?.ok) {
+      const data = await res.json();
+      if (file && file.size > 0) {
+        await uploadTaskScript(data.ID, file);
+      }
+
       setOpenSnackBar(true);
       setSnackbarMessage("Scheduled job created!");
       setJob(initialJob);
+      fileRef.current.value = null;
     } else {
       setOpenSnackBar(true);
       setSnackbarMessage("Failed to create schedule job");
@@ -171,6 +179,18 @@ export default function ScheduleForm() {
     setOpenSnackBar(false);
   };
 
+  const VisuallyHiddenInput = styled("input")({
+    clip: "rect(0 0 0 0)",
+    clipPath: "inset(50%)",
+    height: 1,
+    overflow: "hidden",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    whiteSpace: "nowrap",
+    width: 1,
+  });
+
   return (
     <>
       <Paper elevation={3} className="p-16">
@@ -178,15 +198,31 @@ export default function ScheduleForm() {
         <form className="" onSubmit={(e) => submitForm(e)}>
           <FormControl>
             <div>
-              <TextField
-                required
-                name="job-name"
-                id="outlined-required"
-                label="Job Name"
-                placeholder="Your job name"
-                value={job.JobName}
-                onChange={(e) => setJob({ ...job, JobName: e.target.value })}
-              />
+              <div>
+                <label
+                  htmlFor="job-name-id"
+                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                >
+                  Job Name
+                </label>
+                <input
+                  type="text"
+                  id="job-name-id"
+                  className=" border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                  placeholder="Job Name"
+                  required
+                  value={job.JobName}
+                  onChange={(e) => setJob({ ...job, JobName: e.target.value })}
+                  onInvalid={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity(
+                      "Please enter your job name",
+                    )
+                  }
+                  onInput={(e) =>
+                    (e.target as HTMLInputElement).setCustomValidity("")
+                  }
+                />
+              </div>
             </div>
             <div className="m-4">
               <FormLabel id="frequency-radio-btn">Frequency</FormLabel>
@@ -281,6 +317,8 @@ export default function ScheduleForm() {
                 setSelectedDates={setSelectedDates}
               />
             )}
+
+            <TaskFileUpload setFile={setFile} fileRef={fileRef} />
 
             <Button variant="outlined" type="submit">
               Submit
@@ -567,4 +605,39 @@ export function DatesOption({
 
 function getMonthId(monthName: string) {
   return months.find((month) => month.name == monthName)?.id;
+}
+
+function TaskFileUpload({
+  fileRef,
+  setFile,
+}: {
+  fileRef: any;
+  setFile: React.Dispatch<any>;
+}) {
+  return (
+    <div className="my-4">
+      <label
+        className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+        htmlFor="file_input"
+      >
+        Upload Task Script
+      </label>
+      <input
+        required
+        className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
+        id="file_input"
+        name="task script"
+        type="file"
+        accept=".js,.sh"
+        onChange={(e) => setFile(e?.target?.files?.[0])}
+        ref={fileRef}
+      />
+      <p
+        className="mt-1 text-sm text-gray-500 dark:text-gray-300"
+        id="file_input_help"
+      >
+        .js, .sh
+      </p>
+    </div>
+  );
 }

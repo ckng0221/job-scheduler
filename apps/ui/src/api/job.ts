@@ -23,3 +23,15 @@ export async function submitJob(payload: IJob) {
 
   return res;
 }
+
+export async function uploadTaskScript(jobId: string, file: File) {
+  const url = `${BASE_URL}/scheduler/jobs/${jobId}/task-script`;
+  const formdata = new FormData();
+  formdata.append("file", file, file.name);
+
+  const res = await fetch(url, {
+    method: "POST",
+    body: formdata,
+  });
+  return res;
+}

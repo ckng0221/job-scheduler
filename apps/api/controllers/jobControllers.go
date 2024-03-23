@@ -3,12 +3,13 @@ package controllers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
-	"job-scheduler/api/utils"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -32,9 +33,9 @@ func GetAllJobs(c *gin.Context) {
 			m["is_disabled"] = false
 			m["is_running"] = false
 			// only for current minute
-			currentMinute, nextMinute := utils.GetUnixMinuteRange(time.Now())
-			initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where("retry_count <= ?", MaxRetryCount).Where(m).Find(&jobs)
-			// initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where("retry_count < ?", MaxRetryCount).Where(m).Find(&jobs) // for test
+			// currentMinute, nextMinute := utils.GetUnixMinuteRange(time.Now())
+			// initializers.Db.Where("next_run_time >= ? AND next_run_time < ?", currentMinute.Unix(), nextMinute.Unix()).Where("retry_count <= ?", MaxRetryCount).Where(m).Find(&jobs)
+			initializers.Db.Where("next_run_time <= ?", time.Now().Unix()).Where("retry_count < ?", MaxRetryCount).Where(m).Find(&jobs) // for test
 		}
 	} else {
 		initializers.Db.Where(m).Find(&jobs)
@@ -114,7 +115,7 @@ func UpdateOneJob(c *gin.Context) {
 	// get the id
 	id := c.Param("id")
 	var job models.Job
-	var jobUpate models.JobUpdate
+	var jobUpdate models.JobUpdate
 	initializers.Db.First(&job, id)
 
 	body, err := io.ReadAll(c.Request.Body)
@@ -123,14 +124,14 @@ func UpdateOneJob(c *gin.Context) {
 		return
 	}
 
-	err = json.Unmarshal(body, &jobUpate)
+	err = json.Unmarshal(body, &jobUpdate)
 
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
 	}
 
-	initializers.Db.Model(&job).Updates(&jobUpate)
+	initializers.Db.Model(&job).Updates(&jobUpdate)
 
 	c.JSON(200, job)
 }
@@ -159,4 +160,41 @@ func DeleteOneJob(c *gin.Context) {
 
 	// response
 	c.Status(202)
+}
+
+func GetTaskScript(c *gin.Context) {
+	jobId := c.Param("id")
+
+	var job models.Job
+	result := initializers.Db.First(&job, jobId)
+	if result.Error != nil {
+		c.AbortWithStatus(500)
+	}
+
+	filePath := fmt.Sprintf(".%s", job.TaskPath)
+
+	c.File(filePath)
+}
+
+func UploadTaskScript(c *gin.Context) {
+	// NOTE: Use a fake blob storage just to upload on local FS, instead of cloud blob storage.
+	jobId := c.Param("id")
+	var job models.Job
+
+	file, _ := c.FormFile("file")
+
+	directory, _ := os.Getwd()
+	relativeFilePath := fmt.Sprintf("/blob/%s/%s", jobId, file.Filename)
+	filePath := fmt.Sprintf("%s/%s", directory, relativeFilePath)
+	// fmt.Println(filePath)
+	// Upload file
+	c.SaveUploadedFile(file, filePath)
+
+	initializers.Db.First(&job, jobId)
+
+	initializers.Db.Model(&job).Updates(map[string]interface{}{
+		"TaskPath": filePath,
+	})
+
+	c.JSON(http.StatusOK, gin.H{"filepath": relativeFilePath})
 }

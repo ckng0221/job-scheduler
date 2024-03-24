@@ -1,7 +1,4 @@
 "use client";
-import * as React from "react";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
 import {
   Button,
   Checkbox,
@@ -20,11 +17,14 @@ import {
   SelectChangeEvent,
   Snackbar,
 } from "@mui/material";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import dayjs from "dayjs";
-import { IJob, submitJob, uploadTaskScript } from "../api/job";
+import Box from "@mui/material/Box";
 import { Theme, styled, useTheme } from "@mui/material/styles";
 import { DateTimeValidationError } from "@mui/x-date-pickers";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import dayjs from "dayjs";
+import * as React from "react";
+import { loginAction } from "../actions/authActions";
+import { IJob, submitJob, uploadTaskScript } from "../api/job";
 
 function generateCronExpression({
   scheduledDatetime,
@@ -50,8 +50,6 @@ function generateCronExpression({
   cronMin = scheduledDatetime.minute().toString();
   cronHour = scheduledDatetime.hour().toString();
 
-  console.log(weekdays);
-
   switch (frequency) {
     case "daily":
       break;
@@ -75,12 +73,12 @@ function generateCronExpression({
   return cronExpression;
 }
 
-export default function ScheduleForm() {
+export default function ScheduleForm({ userId }: { userId: string }) {
   const initialJob = {
     JobName: "",
     IsRecurring: false,
     NextRunTime: 0,
-    UserID: 1,
+    UserID: userId,
     Cron: "",
     IsDisabled: false,
   };
@@ -103,6 +101,19 @@ export default function ScheduleForm() {
   const [file, setFile] = React.useState<any>();
   const fileRef = React.useRef<any>(null);
 
+  React.useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.has("code")) {
+      const accessToken = queryParams.get("code");
+
+      const { pathname } = window.location;
+      const urlWithoutSearchParams = `${pathname}`;
+      window.history.replaceState({}, document.title, urlWithoutSearchParams);
+      console.log("login...");
+      loginAction(accessToken || "");
+    }
+  }, []);
+
   const errorMessage = React.useMemo(() => {
     switch (error) {
       case "disablePast": {
@@ -119,6 +130,11 @@ export default function ScheduleForm() {
     e.preventDefault();
 
     // form validation
+    if (!userId) {
+      setOpenSnackBar(true);
+      setSnackbarMessage("Please login first");
+      return;
+    }
 
     if (scheduledDatetime.unix() < dayjs().unix()) {
       setError("disablePast");
@@ -128,6 +144,7 @@ export default function ScheduleForm() {
     let nextRunTimeUnix = 0;
     const payload: IJob = {
       ...job,
+      UserID: userId,
     };
 
     // update next run time for one-time job

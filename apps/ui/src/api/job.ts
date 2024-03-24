@@ -4,7 +4,7 @@ export interface IJob {
   JobName: string;
   IsRecurring: boolean;
   NextRunTime: Number;
-  UserID: Number;
+  UserID: string;
   Cron: string;
   IsDisabled: boolean;
 }

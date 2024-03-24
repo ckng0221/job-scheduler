@@ -1,6 +1,10 @@
 package controllers
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
 	"net/http"
@@ -9,14 +13,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func Login(c *gin.Context) {
-	// Get the email and pass off req body
+
+	// Get acccess token
 	var body struct {
-		Email    string
-		Password string
+		Code string
 	}
 
 	if c.Bind(&body) != nil {
@@ -25,29 +28,19 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
-	// Look up requested user
-	var user models.User
-	initializers.Db.First(&user, "email = ?", body.Email)
+	var profile models.GoogleProfile
 
-	if user.ID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid email or password",
-		})
-		return
+	if body.Code == "" {
+		c.AbortWithStatusJSON(401, "No access token")
 	}
 
-	// Compare sent in pass with saved user pass hash
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid email or password",
-		})
-		return
-	}
+	userData := getUserDataByTokenExchange(body.Code, c)
+	fmt.Println(userData)
+	json.Unmarshal(userData, &profile)
 
 	// generate jwt
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
+		"sub": profile.Id,
 		"exp": time.Now().Add(time.Hour * 24 * 30).Unix(),
 	})
 
@@ -60,16 +53,66 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// register user if not exist
+	var user models.User
+	err = initializers.Db.Where("sub = ?", profile.Id).Find(&user).Error
+	fmt.Println(err)
+	if user.ID == 0 {
+		fmt.Println("user not found")
+		initializers.Db.Create(&models.User{
+			Name:       profile.Name,
+			Email:      profile.Email,
+			Sub:        profile.Id,
+			ProfilePic: profile.Picture,
+		})
+		fmt.Println("user created")
+	}
+
 	// Set cookies
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, true)
 
 	// respond
 	c.JSON(http.StatusOK, gin.H{
-		"name":         user.Name,
+		"name":         profile.Name,
 		"access_token": tokenString,
 	})
-	// c.JSON(http.StatusOK, gin.H{})
+}
+
+func GoogleLogin(c *gin.Context) {
+	url := initializers.AppConfig.GoogleLoginConfig.AuthCodeURL("randomstate")
+
+	c.JSON(http.StatusOK, gin.H{
+		"url": url,
+	})
+}
+
+func GoogleExchangeToken(c *gin.Context) {
+	code := c.Query("code")
+
+	userData := getUserDataByTokenExchange(code, c)
+
+	c.String(200, string(userData))
+}
+
+func getUserDataByTokenExchange(code string, c *gin.Context) []byte {
+	googlecon := initializers.GoogleConfig()
+
+	token, err := googlecon.Exchange(context.Background(), code)
+	if err != nil {
+		c.String(401, "Code-Token Exchange Failed")
+	}
+
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	if err != nil {
+		c.String(401, "User Data Fetch Failed")
+	}
+
+	userData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.AbortWithStatus(500)
+	}
+	return userData
 }
 
 func Validate(c *gin.Context) {

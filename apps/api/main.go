@@ -9,6 +9,7 @@ func init() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectToDb()
 	initializers.SynDatabase()
+	initializers.GoogleConfig()
 }
 
 func main() {

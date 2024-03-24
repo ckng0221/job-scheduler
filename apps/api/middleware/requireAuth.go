@@ -48,7 +48,7 @@ func RequireAuth(c *gin.Context) {
 
 		// Find the user with token sub
 		var user models.User
-		initializers.Db.First(&user, claims["sub"])
+		initializers.Db.Where("sub = ?", claims["sub"]).First(&user)
 
 		if user.ID == 0 {
 			fmt.Println("User not found")

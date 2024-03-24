@@ -25,6 +25,7 @@ import dayjs from "dayjs";
 import * as React from "react";
 import { loginAction } from "../actions/authActions";
 import { IJob, submitJob, uploadTaskScript } from "../api/job";
+import { getCookie } from "../utils/common";
 
 function generateCronExpression({
   scheduledDatetime,
@@ -111,6 +112,8 @@ export default function ScheduleForm({ userId }: { userId: string }) {
       window.history.replaceState({}, document.title, urlWithoutSearchParams);
       console.log("login...");
       loginAction(accessToken || "");
+      const token = getCookie("Authorization");
+      console.log(token);
     }
   }, []);
 

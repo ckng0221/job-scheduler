@@ -32,7 +32,16 @@ func getActiveJobs() []Job {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/jobs?active=true"
 
-	resp, err := http.Get(endpoint)
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", endpoint, nil)
+	req.Header.Add("x-api-key", os.Getenv("ADMIN_API_KEY"))
+	resp, err := client.Do(req)
+
+	if resp.StatusCode != 200 {
+		fmt.Println("Failed. Status Code", resp.StatusCode)
+		return nil
+	}
+
 	if err != nil {
 		fmt.Println(err)
 		return nil

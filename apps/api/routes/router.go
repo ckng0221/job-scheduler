@@ -28,11 +28,11 @@ func SetupRouter() *gin.Engine {
 	AuthRoutes(auth)
 
 	// User
-	user := r.Group("/user")
+	user := r.Group("/user", middleware.RequireAuth)
 	UserRoutes(user)
 
 	// Scheduler
-	job := r.Group("/scheduler")
+	job := r.Group("/scheduler", middleware.RequireAuth)
 	JobRoutes(job)
 	executionRoutes(job)
 

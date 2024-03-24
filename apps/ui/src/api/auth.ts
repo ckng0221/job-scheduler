@@ -1,3 +1,5 @@
+import { getCookie } from "../utils/common";
+
 const BACKEND_HOST = "http://localhost:8000";
 
 const MODULE = "auth";
@@ -37,16 +39,22 @@ export async function validateCookieToken(access_token: string) {
   headers.append("Cookie", `Authorization=${access_token}`);
 
   const res = await fetch(endpoint, { headers: headers });
-  const user = await res.json();
-  return user;
+  if (res.ok) {
+    const user = await res.json();
+    return user;
+  }
 }
 
 export async function logout() {
   const endpoint = `${BACKEND_HOST}/${MODULE}/logout`;
 
+  const headers = new Headers();
+  headers.append("Cookie", `Authorization=${getCookie("Authorization")}`);
   const res = await fetch(endpoint, {
     method: "POST",
+    headers,
   });
+
   const data = await res.json();
   return data;
 }

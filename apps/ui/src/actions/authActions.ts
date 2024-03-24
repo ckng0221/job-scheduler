@@ -28,7 +28,7 @@ export async function loginAction(accesToken: string) {
       cookies().set({
         name: "Authorization",
         value: data.access_token,
-        httpOnly: true,
+        httpOnly: false,
         path: "/",
       });
       // console.log(data);

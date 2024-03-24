@@ -1,7 +1,6 @@
 package tasks
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -132,7 +131,7 @@ func createExecution(job models.Job) (uint, error) {
 
 	payloadByte, _ := json.Marshal(payload)
 
-	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(payloadByte))
+	resp, err := utils.PostRequest(endpoint, payloadByte)
 	if err != nil {
 		fmt.Println(err)
 		return 0, err

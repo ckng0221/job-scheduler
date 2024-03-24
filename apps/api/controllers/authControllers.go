@@ -16,8 +16,7 @@ import (
 )
 
 func Login(c *gin.Context) {
-
-	// Get acccess token
+	// User login based on access token
 	var body struct {
 		Code string
 	}
@@ -69,8 +68,9 @@ func Login(c *gin.Context) {
 	}
 
 	// Set cookies
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, true)
+	// c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, false)
+	fmt.Println("why!!!")
 
 	// respond
 	c.JSON(http.StatusOK, gin.H{
@@ -80,6 +80,7 @@ func Login(c *gin.Context) {
 }
 
 func GoogleLogin(c *gin.Context) {
+	// Return google login URL
 	url := initializers.AppConfig.GoogleLoginConfig.AuthCodeURL("randomstate")
 
 	c.JSON(http.StatusOK, gin.H{
@@ -124,7 +125,7 @@ func Validate(c *gin.Context) {
 func Logout(c *gin.Context) {
 	// Set cookies
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", "", -1, "", "", false, true)
+	c.SetCookie("Authorization", "", -1, "", "", false, false)
 
 	// respond
 	c.JSON(http.StatusOK, gin.H{

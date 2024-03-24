@@ -6,6 +6,7 @@ import (
 	"job-scheduler/api/models"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,15 +15,37 @@ import (
 
 func RequireAuth(c *gin.Context) {
 	// get the cookie of req
-	tokenString, err := c.Cookie("Authorization")
-	if err != nil {
-		c.AbortWithStatus(http.StatusUnauthorized)
+	// tokenString, err := c.Cookie("Authorization")
+	bearerTokenArr := strings.Split(c.GetHeader("Authorization"), "Bearer ")
+	bearerToken := bearerTokenArr[len(bearerTokenArr)-1]
+	apiKey := c.GetHeader("x-api-key")
+	if apiKey == os.Getenv("ADMIN_API_KEY") {
+		// Find the user with token sub
+		var user models.User
+		initializers.Db.Where("id = ?", 1).First(&user)
 
-		// c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Required token in cookie"})
+		if user.ID == 0 {
+			fmt.Println("User not found")
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		// fmt.Println(user.ID)
+		c.Set("user", user)
+
+		// Attach to req
+
+		// Continue
+		c.Next()
+		return
+	}
+	fmt.Println("token", bearerToken)
+
+	if bearerToken == "" {
+		c.AbortWithStatus(http.StatusUnauthorized)
 	}
 
 	// Decode/validate it
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(bearerToken, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -69,4 +92,12 @@ func RequireAuth(c *gin.Context) {
 		return
 	}
 
+}
+
+func RequireAdmin(c *gin.Context) {
+	requestUser, _ := c.Get("user")
+	if requestUser.(models.User).Role != "admin" {
+		c.AbortWithStatus(403)
+		return
+	}
 }

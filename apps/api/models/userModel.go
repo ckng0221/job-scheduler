@@ -20,7 +20,7 @@ type User struct {
 }
 
 type GoogleProfile struct {
-	Id             string
+	Sub            string
 	Email          string
 	Verified_email bool
 	Name           string

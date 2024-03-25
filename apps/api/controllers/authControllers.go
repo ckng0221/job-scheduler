@@ -2,25 +2,23 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
+	"job-scheduler/api/config"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
 	"job-scheduler/api/utils"
 	"net/http"
-	"os"
-	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 )
 
-// TODO: Change from OAuth library to OIDC library
 func Login(c *gin.Context) {
 	// User login based on access token
 	var body struct {
-		Code string
+		Code  string
+		State string
+		Nonce string
 	}
 
 	if c.Bind(&body) != nil {
@@ -29,108 +27,109 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
-	var profile models.GoogleProfile
 
 	if body.Code == "" {
 		c.AbortWithStatusJSON(401, "No access token")
 		return
 	}
 
-	userData, err := getUserDataByTokenExchange(body.Code)
+	tokenClaims, idToken, err := getTokenClaimJwtFromLogin(body.Code, body.State, body.Nonce)
 	if err != nil {
 		c.AbortWithError(400, err)
-		return
-	}
-	// fmt.Println(userData)
-	json.Unmarshal(userData, &profile)
-
-	// generate jwt
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": profile.Id,
-		"exp": time.Now().Add(time.Hour * 24 * 30).Unix(),
-	})
-
-	// Sign and get the complete encoded token as a string using the secret
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{
-			"error": "Failed to create token",
-		})
 		return
 	}
 
 	// register user if not exist
 	var user models.User
-	err = initializers.Db.Where("sub = ?", profile.Id).Limit(1).Find(&user).Error
+	err = initializers.Db.Where("sub = ?", tokenClaims.Sub).Limit(1).Find(&user).Error
 	fmt.Println(err)
 	if user.ID == 0 {
 		fmt.Println("user not found")
 		initializers.Db.Create(&models.User{
-			Name:       profile.Name,
-			Email:      profile.Email,
-			Sub:        profile.Id,
-			ProfilePic: profile.Picture,
+			Name:       tokenClaims.Name,
+			Email:      tokenClaims.Email,
+			Sub:        tokenClaims.Sub,
+			ProfilePic: tokenClaims.Picture,
 		})
 		fmt.Println("user created")
 	}
 
 	// Set cookies
 	// c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, false)
-	fmt.Println("why!!!")
+	c.SetCookie("Authorization", idToken, 3600*24*30, "", "", false, false)
 
 	// respond
 	c.JSON(http.StatusOK, gin.H{
-		"name":         profile.Name,
-		"access_token": tokenString,
+		"name":         tokenClaims.Name,
+		"access_token": idToken,
 	})
 }
 
 func GoogleLogin(c *gin.Context) {
 
-	randomState, _ := utils.GenerateSHA256State()
-
-	// Return google login URL
-	url := initializers.AppConfig.GoogleLoginConfig.AuthCodeURL(randomState)
-
-	c.JSON(http.StatusOK, gin.H{
-		"url": url,
-	})
-}
-
-func GoogleExchangeToken(c *gin.Context) {
-	code := c.Query("code")
-
-	userData, err := getUserDataByTokenExchange(code)
+	state, err := utils.RandString(16)
 	if err != nil {
-		c.AbortWithError(400, err)
+		c.AbortWithStatus(500)
+		return
+	}
+	nonce, err := utils.RandString(16)
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+	c.SetCookie("state", state, 3600*24*30, "", "", false, false)
+	c.SetCookie("nonce", nonce, 3600*24*30, "", "", false, false)
+
+	config, err := config.GoogleConfig()
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
 		return
 	}
 
-	c.String(200, string(userData))
+	url := config.AuthCodeURL(state, oidc.Nonce(nonce))
+
+	c.JSON(http.StatusOK, gin.H{
+		"state": state,
+		"nonce": nonce,
+		"url":   url,
+	})
 }
 
-func getUserDataByTokenExchange(code string) ([]byte, error) {
-	googlecon := initializers.GoogleConfig()
-	//code is only one time used
-	token, err := googlecon.Exchange(context.Background(), code)
-	// jwtIdToken := token.Extra("id_token").(string) // NOTE: could directly JWT id token from google
+func getTokenClaimJwtFromLogin(code string, state string, nonce string) (config.IDTokenClaims, string, error) {
+
+	ctx := context.Background()
+	authConfig, _ := config.GoogleConfig()
+	verifier := config.GetVerifier()
+
+	oauth2Token, err := authConfig.Exchange(ctx, code)
 	if err != nil {
-		return nil, err
+		return config.IDTokenClaims{}, "", err
 	}
 
-	// the access token is not short-lived
-
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
-	if err != nil {
-		return nil, err
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		fmt.Println("No id_token field in oauth2 token.")
+		return config.IDTokenClaims{}, "", err
 	}
 
-	userData, err := io.ReadAll(resp.Body)
+	// JWT token from identify provider
+	idToken, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
-		return nil, err
+		fmt.Println("Failed to verify id token", err)
+		return config.IDTokenClaims{}, "", err
+
 	}
-	return userData, nil
+
+	var tokenClaims config.IDTokenClaims
+	if err := idToken.Claims(&tokenClaims); err != nil {
+		// handle error
+		fmt.Println("Failed to unmarshal claim")
+		return config.IDTokenClaims{}, "", err
+	}
+
+	return tokenClaims, rawIDToken, nil
 }
 
 func Validate(c *gin.Context) {

@@ -261,11 +261,17 @@ func UploadTaskScript(c *gin.Context) {
 	file, _ := c.FormFile("file")
 
 	directory, _ := os.Getwd()
+
 	relativeFilePath := fmt.Sprintf("/blob/%s/%s", jobId, file.Filename)
 	filePath := fmt.Sprintf("%s/%s", directory, relativeFilePath)
 	// fmt.Println(filePath)
 	// Upload file
-	c.SaveUploadedFile(file, filePath)
+	err = c.SaveUploadedFile(file, filePath)
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
 
 	initializers.Db.First(&job, jobId)
 

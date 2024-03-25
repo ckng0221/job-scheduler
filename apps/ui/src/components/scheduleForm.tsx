@@ -105,13 +105,17 @@ export default function ScheduleForm({ userId }: { userId: string }) {
   React.useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     if (queryParams.has("code")) {
-      const accessToken = queryParams.get("code");
+      const code = queryParams.get("code") || "";
+      const state = queryParams.get("state") || "";
+      const nonce = queryParams.get("nonce") || "";
 
       const { pathname } = window.location;
       const urlWithoutSearchParams = `${pathname}`;
-      window.history.replaceState({}, document.title, urlWithoutSearchParams);
+      // window.history.replaceState({}, document.title, urlWithoutSearchParams);
       console.log("login...");
-      loginAction(accessToken || "");
+      console.log("state", state);
+      console.log("nonce", nonce);
+      loginAction(code, state, nonce);
       const token = getCookie("Authorization");
       console.log(token);
     }

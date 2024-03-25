@@ -15,11 +15,15 @@ export async function loginRedirectAction() {
   }
 }
 
-export async function loginAction(accesToken: string) {
+export async function loginAction(
+  authorizationCode: string,
+  state: string,
+  nounce: string,
+) {
   try {
     console.log("running login actions..");
-    console.log(accesToken);
-    const res = await login(accesToken);
+    console.log(authorizationCode);
+    const res = await login(authorizationCode, state, nounce);
 
     //   console.log(res);
     if (res.ok) {

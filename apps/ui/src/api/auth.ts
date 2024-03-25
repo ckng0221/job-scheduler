@@ -13,30 +13,35 @@ export async function getGoogleLoginUrl() {
   return res;
 }
 
-export async function exchangeProfile(access_token: string) {
-  const url = `${BACKEND_HOST}/${MODULE}/google-token-exchange?code=${access_token}`;
+export async function exchangeProfile(authorizationCode: string) {
+  const url = `${BACKEND_HOST}/${MODULE}/google-token-exchange?code=${authorizationCode}`;
   const res = fetch(url, {
     method: "POST",
   });
 
   return res;
 }
-export async function login(access_token: string) {
+export async function login(
+  authorizationCode: string,
+  state: string,
+  nonce: string,
+) {
   const url = `${BACKEND_HOST}/auth/login`;
   const res = await fetch(url, {
     method: "POST",
-    body: JSON.stringify({ code: access_token }),
+    body: JSON.stringify({ code: authorizationCode, state, nonce }),
     headers: { "Content-Type": "application/json" },
   });
 
   return res;
 }
 
-export async function validateCookieToken(access_token: string) {
+// Validate JWT token
+export async function validateCookieToken(id_token: string) {
   const endpoint = `${BACKEND_HOST}/${MODULE}/validate`;
 
   const headers = new Headers();
-  headers.append("Authorization", `Bearer ${access_token}`);
+  headers.append("Authorization", `Bearer ${id_token}`);
 
   const res = await fetch(endpoint, { headers: headers });
   if (res.ok) {

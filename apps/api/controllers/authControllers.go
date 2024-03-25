@@ -2,6 +2,9 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +18,7 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
+// TODO: Change to proper authentication method to OIDC
 func Login(c *gin.Context) {
 	// User login based on access token
 	var body struct {
@@ -31,10 +35,15 @@ func Login(c *gin.Context) {
 
 	if body.Code == "" {
 		c.AbortWithStatusJSON(401, "No access token")
+		return
 	}
 
-	userData := getUserDataByTokenExchange(body.Code, c)
-	fmt.Println(userData)
+	userData, err := getUserDataByTokenExchange(body.Code, c)
+	if err != nil {
+		c.AbortWithError(400, err)
+		return
+	}
+	// fmt.Println(userData)
 	json.Unmarshal(userData, &profile)
 
 	// generate jwt
@@ -80,8 +89,11 @@ func Login(c *gin.Context) {
 }
 
 func GoogleLogin(c *gin.Context) {
+
+	randomState, _ := GenerateSHA256State()
+
 	// Return google login URL
-	url := initializers.AppConfig.GoogleLoginConfig.AuthCodeURL("randomstate")
+	url := initializers.AppConfig.GoogleLoginConfig.AuthCodeURL(randomState)
 
 	c.JSON(http.StatusOK, gin.H{
 		"url": url,
@@ -91,29 +103,33 @@ func GoogleLogin(c *gin.Context) {
 func GoogleExchangeToken(c *gin.Context) {
 	code := c.Query("code")
 
-	userData := getUserDataByTokenExchange(code, c)
+	userData, err := getUserDataByTokenExchange(code, c)
+	if err != nil {
+		c.AbortWithError(400, err)
+		return
+	}
 
 	c.String(200, string(userData))
 }
 
-func getUserDataByTokenExchange(code string, c *gin.Context) []byte {
+func getUserDataByTokenExchange(code string, c *gin.Context) ([]byte, error) {
 	googlecon := initializers.GoogleConfig()
 
 	token, err := googlecon.Exchange(context.Background(), code)
 	if err != nil {
-		c.String(401, "Code-Token Exchange Failed")
+		return nil, err
 	}
 
 	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
-		c.String(401, "User Data Fetch Failed")
+		return nil, err
 	}
 
 	userData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.AbortWithStatus(500)
+		return nil, err
 	}
-	return userData
+	return userData, nil
 }
 
 func Validate(c *gin.Context) {
@@ -131,4 +147,23 @@ func Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "logged out",
 	})
+}
+
+func GenerateSHA256State() (string, error) {
+	// Generate 1024 random bytes
+	randomBytes := make([]byte, 1024)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	// Compute SHA256 hash
+	hasher := sha256.New()
+	hasher.Write(randomBytes)
+	hashBytes := hasher.Sum(nil)
+
+	// Convert hash bytes to hexadecimal string
+	state := hex.EncodeToString(hashBytes)
+
+	return state, nil
 }

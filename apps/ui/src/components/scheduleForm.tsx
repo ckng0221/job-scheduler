@@ -144,19 +144,17 @@ export default function ScheduleForm({ userId }: { userId: string }) {
       return;
     }
 
-    let nextRunTimeUnix = 0;
+    let nextRunTimeUnix = scheduledDatetime.unix();
     const payload: IJob = {
       ...job,
       UserID: userId,
     };
 
-    // update next run time for one-time job
+    // update next run time for both one-time and recurring job
+    payload["NextRunTime"] = nextRunTimeUnix;
     // console.log(job);
 
-    if (!job.IsRecurring) {
-      nextRunTimeUnix = scheduledDatetime.unix();
-      payload["NextRunTime"] = nextRunTimeUnix;
-    } else {
+    if (job.IsRecurring) {
       const cronExpression = generateCronExpression({
         scheduledDatetime,
         frequency: recurringFrequency,

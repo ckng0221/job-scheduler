@@ -67,13 +67,6 @@ func CreateJobs(c *gin.Context) {
 			c.AbortWithError(422, errors.New("cron cannot be empty"))
 			return
 		}
-		// cronExp, err := cronexpr.Parse(job.Cron)
-		// if err != nil {
-		// 	c.AbortWithError(422, errors.New("invalid cron expression"))
-		// 	return
-		// }
-		// nextRunTimeUnix := cronExp.Next(time.Now().UTC()).Unix()
-		// jobM["NextRunTime"] = nextRunTimeUnix
 	}
 
 	result := initializers.Db.Model(&job).Create(&job)
@@ -187,6 +180,7 @@ func UpdateOneJobRetryCount(c *gin.Context) {
 	result := initializers.Db.Model(&job).Where("id = ? AND retry_count = ?", id, job.RetryCount).Update("retry_count", job.RetryCount+1)
 	if result.Error != nil {
 		c.AbortWithStatus(500)
+		return
 	}
 
 	c.Status(202)
@@ -217,6 +211,7 @@ func DeleteOneJob(c *gin.Context) {
 	result := initializers.Db.Delete(&models.Job{}, id)
 	if result.Error != nil {
 		c.AbortWithStatus(500)
+		return
 	}
 
 	// response

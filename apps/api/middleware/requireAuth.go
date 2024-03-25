@@ -42,6 +42,7 @@ func RequireAuth(c *gin.Context) {
 
 	if bearerToken == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
 
 	// Decode/validate it

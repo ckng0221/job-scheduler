@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"job-scheduler/api/initializers"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func Signup(c *gin.Context) {
@@ -99,12 +101,14 @@ func GetOneUser(c *gin.Context) {
 	id := c.Param("id")
 
 	var user models.User
-	result := initializers.Db.First(&user, id)
-	if result.Error != nil {
-		fmt.Println(result.Error)
-	}
-	if user.ID == 0 {
-		c.JSON(http.StatusOK, gin.H{})
+	err := initializers.Db.First(&user, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusOK, gin.H{})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
 		return
 	}
 

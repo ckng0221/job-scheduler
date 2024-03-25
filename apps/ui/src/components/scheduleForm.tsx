@@ -26,6 +26,7 @@ import * as React from "react";
 import { loginAction } from "../actions/authActions";
 import { IJob, submitJob, uploadTaskScript } from "../api/job";
 import { getCookie } from "../utils/common";
+import { useRouter } from "next/navigation";
 
 function generateCronExpression({
   scheduledDatetime,
@@ -102,14 +103,14 @@ export default function ScheduleForm({ userId }: { userId: string }) {
   const [file, setFile] = React.useState<any>();
   const fileRef = React.useRef<any>(null);
 
+  const router = useRouter();
+
   React.useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     if (queryParams.has("code")) {
       const code = queryParams.get("code") || "";
       const state = queryParams.get("state") || "";
 
-      const { pathname } = window.location;
-      // const urlWithoutSearchParams = `${pathname}`;
       window.history.replaceState({}, document.title, "/");
       console.log("login...");
       const cookieState = getCookie("state") || "";
@@ -120,8 +121,11 @@ export default function ScheduleForm({ userId }: { userId: string }) {
       loginAction(code, state, cookieState, nonce);
       // const token = getCookie("Authorization");
       // console.log(token);
+
+      // To remove query parameters from url
+      router.push("/");
     }
-  }, []);
+  }, [router]);
 
   const errorMessage = React.useMemo(() => {
     switch (error) {

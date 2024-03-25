@@ -54,7 +54,7 @@ func Login(c *gin.Context) {
 
 	// register user if not exist
 	var user models.User
-	err = initializers.Db.Where("sub = ?", profile.Id).Find(&user).Error
+	err = initializers.Db.Where("sub = ?", profile.Id).Limit(1).Find(&user).Error
 	fmt.Println(err)
 	if user.ID == 0 {
 		fmt.Println("user not found")

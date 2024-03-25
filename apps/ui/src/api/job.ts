@@ -19,7 +19,7 @@ export async function submitJob(payload: IJob) {
   const url = `${BASE_URL}/scheduler/jobs`;
   const headers = new Headers();
   headers.append("Content-Type", "application/json");
-  headers.append("Authorization", getCookie("Authorization") ?? "");
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
 
   const res = fetch(url, {
     method: "POST",
@@ -35,7 +35,7 @@ export async function uploadTaskScript(jobId: string, file: File) {
   const formdata = new FormData();
   formdata.append("file", file, file.name);
   const headers = new Headers();
-  headers.append("Authorization", getCookie("Authorization") ?? "");
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
 
   const res = await fetch(url, {
     method: "POST",

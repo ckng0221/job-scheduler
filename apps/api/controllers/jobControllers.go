@@ -8,13 +8,13 @@ import (
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
 	"job-scheduler/api/utils"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func GetAllJobs(c *gin.Context) {
@@ -95,7 +95,15 @@ func GetOneJob(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
-		log.Fatal(result.Error)
+		fmt.Println(result.Error)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	err := requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
 	}
 
 	c.JSON(http.StatusOK, job)
@@ -103,6 +111,23 @@ func GetOneJob(c *gin.Context) {
 
 func GetOneJobExecutions(c *gin.Context) {
 	id := c.Param("id")
+
+	var job models.Job
+	err := initializers.Db.First(&job, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusOK, gin.H{})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
 
 	var executions []models.Execution
 	m := make(map[string]interface{})
@@ -128,7 +153,23 @@ func UpdateOneJob(c *gin.Context) {
 	err = json.Unmarshal(body, &jobUpdate)
 
 	if err != nil {
-		c.AbortWithError(400, err)
+		c.AbortWithError(422, err)
+		return
+	}
+
+	err = initializers.Db.First(&job, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(400, gin.H{"error": "Record not found"})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
 		return
 	}
 
@@ -154,6 +195,25 @@ func UpdateOneJobRetryCount(c *gin.Context) {
 func DeleteOneJob(c *gin.Context) {
 	id := c.Param("id")
 
+	var job models.Job
+
+	err := initializers.Db.First(&job, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(400, gin.H{"error": "Record not found"})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
+
 	result := initializers.Db.Delete(&models.Job{}, id)
 	if result.Error != nil {
 		c.AbortWithStatus(500)
@@ -167,20 +227,41 @@ func GetTaskScript(c *gin.Context) {
 	jobId := c.Param("id")
 
 	var job models.Job
-	result := initializers.Db.First(&job, jobId)
-	if result.Error != nil {
+	err := initializers.Db.First(&job, jobId).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{})
+			return
+		}
+		fmt.Println(err)
 		c.AbortWithStatus(500)
+		return
 	}
 
-	filePath := fmt.Sprintf(".%s", job.TaskPath)
-
-	c.File(filePath)
+	c.File(job.TaskPath)
 }
 
 func UploadTaskScript(c *gin.Context) {
 	// NOTE: Use a fake blob storage just to upload on local FS, instead of cloud blob storage.
 	jobId := c.Param("id")
 	var job models.Job
+
+	err := initializers.Db.First(&job, jobId).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(400, gin.H{"error": "Record not found"})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
 
 	file, _ := c.FormFile("file")
 
@@ -198,4 +279,12 @@ func UploadTaskScript(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusOK, gin.H{"filepath": relativeFilePath})
+}
+
+func requireOwner(c *gin.Context, ownerId uint) error {
+	requestUser, _ := c.Get("user")
+	if requestUser.(models.User).ID != ownerId && requestUser.(models.User).Role != "admin" {
+		return errors.New("forbidden")
+	}
+	return nil
 }

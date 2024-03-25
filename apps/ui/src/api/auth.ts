@@ -36,7 +36,7 @@ export async function validateCookieToken(access_token: string) {
   const endpoint = `${BACKEND_HOST}/${MODULE}/validate`;
 
   const headers = new Headers();
-  headers.append("Cookie", `Authorization=${access_token}`);
+  headers.append("Authorization", `Bearer ${access_token}`);
 
   const res = await fetch(endpoint, { headers: headers });
   if (res.ok) {
@@ -49,7 +49,7 @@ export async function logout() {
   const endpoint = `${BACKEND_HOST}/${MODULE}/logout`;
 
   const headers = new Headers();
-  headers.append("Cookie", `Authorization=${getCookie("Authorization")}`);
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}`);
   const res = await fetch(endpoint, {
     method: "POST",
     headers,

@@ -11,6 +11,19 @@ export async function loginRedirectAction() {
     const data = await res.json();
     const url = data.url;
 
+    cookies().set({
+      name: "state",
+      value: data.state,
+      httpOnly: false,
+      path: "/",
+    });
+    cookies().set({
+      name: "nonce",
+      value: data.nonce,
+      httpOnly: false,
+      path: "/",
+    });
+
     redirect(url);
   }
 }
@@ -18,12 +31,14 @@ export async function loginRedirectAction() {
 export async function loginAction(
   authorizationCode: string,
   state: string,
+  cookieState: string,
   nounce: string,
 ) {
   try {
     console.log("running login actions..");
     console.log(authorizationCode);
-    const res = await login(authorizationCode, state, nounce);
+
+    const res = await login(authorizationCode, state, cookieState, nounce);
 
     //   console.log(res);
     if (res.ok) {

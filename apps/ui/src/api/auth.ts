@@ -24,13 +24,21 @@ export async function exchangeProfile(authorizationCode: string) {
 export async function login(
   authorizationCode: string,
   state: string,
+  cookieState: string,
   nonce: string,
 ) {
   const url = `${BACKEND_HOST}/auth/login`;
+  const headers = new Headers();
+  headers.append("Cookie", `state=${cookieState}`);
+  headers.append("Content-Type", "application/json");
   const res = await fetch(url, {
     method: "POST",
-    body: JSON.stringify({ code: authorizationCode, state, nonce }),
-    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: authorizationCode,
+      state: state,
+      nonce: nonce,
+    }),
+    headers,
   });
 
   return res;

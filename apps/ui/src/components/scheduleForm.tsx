@@ -107,17 +107,19 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     if (queryParams.has("code")) {
       const code = queryParams.get("code") || "";
       const state = queryParams.get("state") || "";
-      const nonce = queryParams.get("nonce") || "";
 
       const { pathname } = window.location;
-      const urlWithoutSearchParams = `${pathname}`;
-      // window.history.replaceState({}, document.title, urlWithoutSearchParams);
+      // const urlWithoutSearchParams = `${pathname}`;
+      window.history.replaceState({}, document.title, "/");
       console.log("login...");
-      console.log("state", state);
-      console.log("nonce", nonce);
-      loginAction(code, state, nonce);
-      const token = getCookie("Authorization");
-      console.log(token);
+      const cookieState = getCookie("state") || "";
+      const nonce = getCookie("nonce") || "";
+      // console.log("state", state);
+      // console.log("nonce", nonce);
+
+      loginAction(code, state, cookieState, nonce);
+      // const token = getCookie("Authorization");
+      // console.log(token);
     }
   }, []);
 

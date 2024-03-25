@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"job-scheduler/api/config"
 	"job-scheduler/api/initializers"
@@ -21,6 +22,12 @@ func Login(c *gin.Context) {
 		Nonce string
 	}
 
+	cookieState, err := c.Cookie("state")
+	if err != nil {
+		c.AbortWithStatusJSON(401, "State not found")
+		return
+	}
+
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadGateway, gin.H{
 			"error": "Failed to read body",
@@ -33,7 +40,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	tokenClaims, idToken, err := getTokenClaimJwtFromLogin(body.Code, body.State, body.Nonce)
+	tokenClaims, idToken, err := getTokenClaimJwtFromLogin(body.Code, body.State, cookieState, body.Nonce)
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
@@ -78,8 +85,8 @@ func GoogleLogin(c *gin.Context) {
 		c.AbortWithStatus(500)
 		return
 	}
-	c.SetCookie("state", state, 3600*24*30, "", "", false, false)
-	c.SetCookie("nonce", nonce, 3600*24*30, "", "", false, false)
+	// c.SetCookie("state", state, 3600*24*30, "", "", false, false)
+	// c.SetCookie("nonce", nonce, 3600*24*30, "", "", false, false)
 
 	config, err := config.GoogleConfig()
 	if err != nil {
@@ -97,8 +104,10 @@ func GoogleLogin(c *gin.Context) {
 	})
 }
 
-func getTokenClaimJwtFromLogin(code string, state string, nonce string) (config.IDTokenClaims, string, error) {
-
+func getTokenClaimJwtFromLogin(code, state, cookieState, nonce string) (config.IDTokenClaims, string, error) {
+	if state != cookieState {
+		return config.IDTokenClaims{}, "", errors.New("state does not match")
+	}
 	ctx := context.Background()
 	authConfig, _ := config.GoogleConfig()
 	verifier := config.GetVerifier()
@@ -119,7 +128,10 @@ func getTokenClaimJwtFromLogin(code string, state string, nonce string) (config.
 	if err != nil {
 		fmt.Println("Failed to verify id token", err)
 		return config.IDTokenClaims{}, "", err
+	}
 
+	if idToken.Nonce != nonce {
+		return config.IDTokenClaims{}, "", errors.New("nonce does not match")
 	}
 
 	var tokenClaims config.IDTokenClaims

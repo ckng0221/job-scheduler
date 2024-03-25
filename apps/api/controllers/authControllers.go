@@ -2,14 +2,12 @@ package controllers
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
+	"job-scheduler/api/utils"
 	"net/http"
 	"os"
 	"time"
@@ -18,7 +16,7 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-// TODO: Change to proper authentication method to OIDC
+// TODO: Change from OAuth library to OIDC library
 func Login(c *gin.Context) {
 	// User login based on access token
 	var body struct {
@@ -38,7 +36,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	userData, err := getUserDataByTokenExchange(body.Code, c)
+	userData, err := getUserDataByTokenExchange(body.Code)
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
@@ -90,7 +88,7 @@ func Login(c *gin.Context) {
 
 func GoogleLogin(c *gin.Context) {
 
-	randomState, _ := GenerateSHA256State()
+	randomState, _ := utils.GenerateSHA256State()
 
 	// Return google login URL
 	url := initializers.AppConfig.GoogleLoginConfig.AuthCodeURL(randomState)
@@ -103,7 +101,7 @@ func GoogleLogin(c *gin.Context) {
 func GoogleExchangeToken(c *gin.Context) {
 	code := c.Query("code")
 
-	userData, err := getUserDataByTokenExchange(code, c)
+	userData, err := getUserDataByTokenExchange(code)
 	if err != nil {
 		c.AbortWithError(400, err)
 		return
@@ -112,13 +110,16 @@ func GoogleExchangeToken(c *gin.Context) {
 	c.String(200, string(userData))
 }
 
-func getUserDataByTokenExchange(code string, c *gin.Context) ([]byte, error) {
+func getUserDataByTokenExchange(code string) ([]byte, error) {
 	googlecon := initializers.GoogleConfig()
-
+	//code is only one time used
 	token, err := googlecon.Exchange(context.Background(), code)
+	// jwtIdToken := token.Extra("id_token").(string) // NOTE: could directly JWT id token from google
 	if err != nil {
 		return nil, err
 	}
+
+	// the access token is not short-lived
 
 	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
 	if err != nil {
@@ -147,23 +148,4 @@ func Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "logged out",
 	})
-}
-
-func GenerateSHA256State() (string, error) {
-	// Generate 1024 random bytes
-	randomBytes := make([]byte, 1024)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return "", err
-	}
-
-	// Compute SHA256 hash
-	hasher := sha256.New()
-	hasher.Write(randomBytes)
-	hashBytes := hasher.Sum(nil)
-
-	// Convert hash bytes to hexadecimal string
-	state := hex.EncodeToString(hashBytes)
-
-	return state, nil
 }

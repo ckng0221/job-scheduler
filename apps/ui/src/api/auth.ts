@@ -1,11 +1,10 @@
-import { getCookie } from "../utils/common";
-
-const BACKEND_HOST = "http://localhost:8000";
+const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST;
+const BACKEND_HOST_INTERNAL = process.env.BACKEND_HOST_INTERNAL;
 
 const MODULE = "auth";
 
 export async function getGoogleLoginUrl() {
-  const url = `${BACKEND_HOST}/${MODULE}/google-login`;
+  const url = `${BACKEND_HOST_INTERNAL}/${MODULE}/google-login`;
   const res = fetch(url, {
     method: "GET",
   });
@@ -27,7 +26,7 @@ export async function login(
   cookieState: string,
   nonce: string,
 ) {
-  const url = `${BACKEND_HOST}/auth/login`;
+  const url = `${BACKEND_HOST_INTERNAL}/auth/login`;
   const headers = new Headers();
   headers.append("Cookie", `state=${cookieState}`);
   headers.append("Content-Type", "application/json");
@@ -46,7 +45,7 @@ export async function login(
 
 // Validate JWT token
 export async function validateCookieToken(id_token: string) {
-  const endpoint = `${BACKEND_HOST}/${MODULE}/validate`;
+  const endpoint = `${BACKEND_HOST_INTERNAL}/${MODULE}/validate`;
 
   const headers = new Headers();
   headers.append("Authorization", `Bearer ${id_token}`);
@@ -55,19 +54,21 @@ export async function validateCookieToken(id_token: string) {
   if (res.ok) {
     const user = await res.json();
     return user;
+  } else {
+    console.error("Cannot get user");
   }
 }
 
-export async function logout() {
-  const endpoint = `${BACKEND_HOST}/${MODULE}/logout`;
+// export async function logout() {
+//   const endpoint = `${BACKEND_HOST}/${MODULE}/logout`;
 
-  const headers = new Headers();
-  headers.append("Authorization", `Bearer ${getCookie("Authorization")}`);
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers,
-  });
+//   const headers = new Headers();
+//   headers.append("Authorization", `Bearer ${getCookie("Authorization")}`);
+//   const res = await fetch(endpoint, {
+//     method: "POST",
+//     headers,
+//   });
 
-  const data = await res.json();
-  return data;
-}
+//   const data = await res.json();
+//   return data;
+// }

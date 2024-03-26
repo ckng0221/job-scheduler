@@ -1,0 +1,118 @@
+# NOTE: The ports of internal services (eg. book, customer, payment, borrowing) are not exposed in production
+
+services:
+  # app services
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.service
+      target: production
+      args:
+        service: api
+    env_file:
+      - ./apps/api/.env
+    environment:
+      - DB_URL=dbuser:dbuser123@tcp(mysql:3306)/job-scheduler?charset=utf8mb4&parseTime=True&loc=UTC
+    depends_on:
+      - mysql
+    networks:
+      - node-network
+    links:
+      - mysql
+    ports:
+      - "8000:8000"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.service
+      target: production
+      args:
+        service: scheduler
+    env_file:
+      - ./apps/scheduler/.env
+    environment:
+      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - rabbitmq
+      - api
+    networks:
+      - node-network
+    links:
+      - rabbitmq
+      - api
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.service
+      target: production
+      args:
+        service: worker
+    env_file:
+      - ./apps/worker/.env
+    environment:
+      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - rabbitmq
+    networks:
+      - node-network
+    links:
+      - rabbitmq
+      - api
+
+  ui:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.ui
+    env_file:
+      - ./apps/ui/.env.production
+    environment:
+      - NEXT_PUBLIC_BACKEND_HOST=http://api:8000
+      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    links:
+      - api
+    networks:
+      - node-network
+
+  # Dependencies
+  rabbitmq:
+    image: rabbitmq
+    # ports:
+    #   - "5672:5672"
+    networks:
+      - node-network
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD_ENCRYPTED: false
+      MYSQL_DATABASE: "job-scheduler"
+      MYSQL_USER: "dbuser"
+      MYSQL_ROOT_PASSWORD: "dbuser123"
+      MYSQL_PASSWORD: "dbuser123"
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    # ports:
+    #   - "3309:3306"
+    volumes:
+      - my-db:/var/lib/mysql
+    networks:
+      - node-network
+
+volumes:
+  my-db:
+networks:
+  node-network:
+    driver: bridge
+#
+# docker compose -f docker-compose.prod.yml up -d
+# docker compose -f docker-compose.prod.yml up -d --build
+# docker compose -f docker-compose.prod.yml down
+# docker compose -f docker-compose.prod.yml down -v  #Delete volume

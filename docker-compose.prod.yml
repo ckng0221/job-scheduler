@@ -15,6 +15,7 @@ services:
       - DB_URL=dbuser:dbuser123@tcp(mysql:3306)/job-scheduler?charset=utf8mb4&parseTime=True&loc=UTC
     depends_on:
       - mysql
+    restart: always
     networks:
       - node-network
     links:
@@ -70,7 +71,7 @@ services:
     env_file:
       - ./apps/ui/.env.production
     environment:
-      - NEXT_PUBLIC_BACKEND_HOST=http://api:8000
+      - BACKEND_HOST_INTERNAL=http://api:8000
       - RABBIT_MQ_HOST=amqp://rabbitmq:5672
     depends_on:
       - api
@@ -99,20 +100,24 @@ services:
       MYSQL_ROOT_PASSWORD: "dbuser123"
       MYSQL_PASSWORD: "dbuser123"
       MYSQL_ALLOW_EMPTY_PASSWORD: 1
-    # ports:
-    #   - "3309:3306"
+    ports:
+      - "3309:3306"
     volumes:
-      - my-db:/var/lib/mysql
+      - mysql-db:/var/lib/mysql
     networks:
       - node-network
 
 volumes:
-  my-db:
+  mysql-db:
 networks:
   node-network:
     driver: bridge
-#
+# ---
+# Comands
+# docker-compose -f docker-compose.prod.yml up -d mysql   # start mysql first, as it takes time to get ready
 # docker compose -f docker-compose.prod.yml up -d
 # docker compose -f docker-compose.prod.yml up -d --build
 # docker compose -f docker-compose.prod.yml down
 # docker compose -f docker-compose.prod.yml down -v  #Delete volume
+
+# NOTE: api container could fail to run before mysql is ready. Will restart when failing

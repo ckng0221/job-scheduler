@@ -25,7 +25,7 @@ COPY --from=build-stage /${service} /go-app
 
 EXPOSE 8000
 
-USER nonroot:nonroot
+# USER nonroot:nonroot
 
 ENTRYPOINT ["/go-app"]
 
@@ -36,5 +36,4 @@ ENTRYPOINT ["/go-app"]
 # docker build --build-arg="service=worker" -f ./apps/Dockerfile.service . -t jobscheduler-worker
 # docker run --env-file ./apps/worker/.env jobscheduler-worker
 
-# mysql
-# rabbitmq
+# TODO: may need a separate blob service to allow worker to get the script file.

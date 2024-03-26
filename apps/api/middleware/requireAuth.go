@@ -30,7 +30,7 @@ func RequireAuth(c *gin.Context) {
 			return
 		}
 		// fmt.Println(user.ID)
-		c.Set("user", models.User{Name: "Bot", Role: "admin"})
+		c.Set("user", user)
 
 		// Attach to req
 

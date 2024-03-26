@@ -1,22 +1,31 @@
 package controllers
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"job-scheduler/api/config"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
+	"job-scheduler/api/utils"
 	"net/http"
-	"os"
-	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func Login(c *gin.Context) {
-	// Get the email and pass off req body
+	// User login based on access token
 	var body struct {
-		Email    string
-		Password string
+		Code  string
+		State string
+		Nonce string
+	}
+
+	cookieState, err := c.Cookie("state")
+	if err != nil {
+		c.AbortWithStatusJSON(401, "State not found")
+		return
 	}
 
 	if c.Bind(&body) != nil {
@@ -25,51 +34,114 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
-	// Look up requested user
+
+	if body.Code == "" {
+		c.AbortWithStatusJSON(401, "No access token")
+		return
+	}
+
+	tokenClaims, idToken, err := getTokenClaimJwtFromLogin(body.Code, body.State, cookieState, body.Nonce)
+	if err != nil {
+		c.AbortWithError(400, err)
+		return
+	}
+
+	// register user if not exist
 	var user models.User
-	initializers.Db.First(&user, "email = ?", body.Email)
-
+	err = initializers.Db.Where("sub = ?", tokenClaims.Sub).Limit(1).Find(&user).Error
+	fmt.Println(err)
 	if user.ID == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid email or password",
+		fmt.Println("user not found")
+		initializers.Db.Create(&models.User{
+			Name:       tokenClaims.Name,
+			Email:      tokenClaims.Email,
+			Sub:        tokenClaims.Sub,
+			ProfilePic: tokenClaims.Picture,
 		})
-		return
-	}
-
-	// Compare sent in pass with saved user pass hash
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Invalid email or password",
-		})
-		return
-	}
-
-	// generate jwt
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,
-		"exp": time.Now().Add(time.Hour * 24 * 30).Unix(),
-	})
-
-	// Sign and get the complete encoded token as a string using the secret
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{
-			"error": "Failed to create token",
-		})
-		return
+		fmt.Println("user created")
 	}
 
 	// Set cookies
-	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 3600*24*30, "", "", false, true)
+	// c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("Authorization", idToken, 3600*24*30, "", "", false, false)
 
 	// respond
 	c.JSON(http.StatusOK, gin.H{
-		"name":         user.Name,
-		"access_token": tokenString,
+		"name":         tokenClaims.Name,
+		"access_token": idToken,
 	})
-	// c.JSON(http.StatusOK, gin.H{})
+}
+
+func GoogleLogin(c *gin.Context) {
+
+	state, err := utils.RandString(16)
+	if err != nil {
+		c.AbortWithStatus(500)
+		return
+	}
+	nonce, err := utils.RandString(16)
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+	// c.SetCookie("state", state, 3600*24*30, "", "", false, false)
+	// c.SetCookie("nonce", nonce, 3600*24*30, "", "", false, false)
+
+	config, err := config.GoogleConfig()
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	url := config.AuthCodeURL(state, oidc.Nonce(nonce))
+
+	c.JSON(http.StatusOK, gin.H{
+		"state": state,
+		"nonce": nonce,
+		"url":   url,
+	})
+}
+
+func getTokenClaimJwtFromLogin(code, state, cookieState, nonce string) (config.IDTokenClaims, string, error) {
+	if state != cookieState {
+		return config.IDTokenClaims{}, "", errors.New("state does not match")
+	}
+	ctx := context.Background()
+	authConfig, _ := config.GoogleConfig()
+	verifier := config.GetVerifier()
+
+	oauth2Token, err := authConfig.Exchange(ctx, code)
+	if err != nil {
+		return config.IDTokenClaims{}, "", err
+	}
+
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		fmt.Println("No id_token field in oauth2 token.")
+		return config.IDTokenClaims{}, "", err
+	}
+
+	// JWT token from identify provider
+	idToken, err := verifier.Verify(ctx, rawIDToken)
+	if err != nil {
+		fmt.Println("Failed to verify id token", err)
+		return config.IDTokenClaims{}, "", err
+	}
+
+	if idToken.Nonce != nonce {
+		return config.IDTokenClaims{}, "", errors.New("nonce does not match")
+	}
+
+	var tokenClaims config.IDTokenClaims
+	if err := idToken.Claims(&tokenClaims); err != nil {
+		// handle error
+		fmt.Println("Failed to unmarshal claim")
+		return config.IDTokenClaims{}, "", err
+	}
+
+	return tokenClaims, rawIDToken, nil
 }
 
 func Validate(c *gin.Context) {
@@ -81,7 +153,7 @@ func Validate(c *gin.Context) {
 func Logout(c *gin.Context) {
 	// Set cookies
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", "", -1, "", "", false, true)
+	c.SetCookie("Authorization", "", -1, "", "", false, false)
 
 	// respond
 	c.JSON(http.StatusOK, gin.H{

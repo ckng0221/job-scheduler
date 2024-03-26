@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -26,37 +27,53 @@ type Job struct {
 	RetryCount  uint16
 }
 
-func getActiveJobs() []Job {
+func getActiveJobs() ([]Job, error) {
 	fmt.Println("Reading active jobs...")
 
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/jobs?active=true"
-
-	resp, err := http.Get(endpoint)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return nil, err
+	}
+	req.Header.Add("x-api-key", os.Getenv("ADMIN_API_KEY"))
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		fmt.Println("Failed. Status Code", resp.StatusCode)
+		return nil, errors.New("failed to get active jobs")
 	}
 	fmt.Println("Received all active jobs")
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 
 	var jobs []Job
 	err = json.Unmarshal(body, &jobs)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return nil, err
 	}
 
-	return jobs
+	return jobs, nil
 }
 
 func PublishActiveJobs() {
-	jobs := getActiveJobs()
+	jobs, err := getActiveJobs()
+	if err != nil {
+		fmt.Println("Failed to get active jobs")
+		return
+	}
+
 	if len(jobs) == 0 {
 		fmt.Println("No active jobs.")
 		return

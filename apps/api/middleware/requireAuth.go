@@ -1,54 +1,28 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
+	"job-scheduler/api/config"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
 	"net/http"
 	"os"
-	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
 )
 
 func RequireAuth(c *gin.Context) {
 	// get the cookie of req
-	tokenString, err := c.Cookie("Authorization")
-	if err != nil {
-		c.AbortWithStatus(http.StatusUnauthorized)
-
-		// c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Required token in cookie"})
-	}
-
-	// Decode/validate it
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Don't forget to validate the alg is what you expect:
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-
-		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
-		return []byte(os.Getenv("JWT_SECRET")), nil
-	})
-	if err != nil {
-		// return
-		fmt.Println("Token not found")
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Token not found"})
-		return
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		// Check the exp
-		if float64(time.Now().Unix()) > claims["exp"].(float64) {
-			fmt.Println("Token expired")
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
+	// tokenString, err := c.Cookie("Authorization")
+	bearerTokenArr := strings.Split(c.GetHeader("Authorization"), "Bearer ")
+	bearerToken := bearerTokenArr[len(bearerTokenArr)-1]
+	apiKey := c.GetHeader("x-api-key")
+	if apiKey == os.Getenv("ADMIN_API_KEY") {
 		// Find the user with token sub
 		var user models.User
-		initializers.Db.First(&user, claims["sub"])
+		initializers.Db.Where("id = ?", 1).First(&user)
 
 		if user.ID == 0 {
 			fmt.Println("User not found")
@@ -62,11 +36,60 @@ func RequireAuth(c *gin.Context) {
 
 		// Continue
 		c.Next()
+		return
+	}
+	// fmt.Println("token", bearerToken)
 
-		// fmt.Println(claims["foo"], claims["nbf"])
-	} else {
+	if bearerToken == "" {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
+	// Decode/validate it
+	verifier := config.GetVerifier()
+	ctx := context.Background()
+
+	// JWT token from identify provider
+	idToken, err := verifier.Verify(ctx, bearerToken)
+	if err != nil {
+		c.AbortWithStatusJSON(401, gin.H{"error": "Invalid token"})
+		return
+
+	}
+
+	var claims config.IDTokenClaims
+	if err := idToken.Claims(&claims); err != nil {
+		// handle error
+		fmt.Printf("Sub not found")
+		c.AbortWithStatus(500)
+		return
+	}
+
+	// Find the user with token sub
+	var user models.User
+	initializers.Db.Where("sub = ?", claims.Sub).First(&user)
+
+	if user.ID == 0 {
+		fmt.Println("User not found")
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	// fmt.Println(user.ID)
+	c.Set("user", user)
+
+	// Attach to req
+
+	// Continue
+	c.Next()
+
+	// fmt.Println(claims["foo"], claims["nbf"])
+
+}
+
+func RequireAdmin(c *gin.Context) {
+	requestUser, _ := c.Get("user")
+	if requestUser.(models.User).Role != "admin" {
+		c.AbortWithStatus(403)
+		return
+	}
 }

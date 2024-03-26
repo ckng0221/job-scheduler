@@ -2,14 +2,15 @@ package routes
 
 import (
 	"job-scheduler/api/controllers"
+	"job-scheduler/api/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 func executionRoutes(r *gin.RouterGroup) {
-	r.POST("/executions", controllers.CreateExecutions)
-	r.GET("/executions", controllers.GetAllExecutions)
-	r.GET("/executions/:id", controllers.GetOneExecution)
-	r.PATCH("/executions/:id", controllers.UpdateOneExecution)
-	r.DELETE("/executions/:id", controllers.DeleteOneExecution)
+	r.POST("/executions", middleware.RequireAdmin, controllers.CreateExecutions)
+	r.GET("/executions", middleware.RequireAdmin, controllers.GetAllExecutions)
+	r.GET("/executions/:id", middleware.RequireAdmin, controllers.GetOneExecution)
+	r.PATCH("/executions/:id", middleware.RequireAdmin, controllers.UpdateOneExecution)
+	r.DELETE("/executions/:id", middleware.RequireAdmin, controllers.DeleteOneExecution)
 }

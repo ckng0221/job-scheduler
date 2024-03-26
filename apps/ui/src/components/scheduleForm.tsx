@@ -1,7 +1,4 @@
 "use client";
-import * as React from "react";
-import Box from "@mui/material/Box";
-import TextField from "@mui/material/TextField";
 import {
   Button,
   Checkbox,
@@ -20,11 +17,16 @@ import {
   SelectChangeEvent,
   Snackbar,
 } from "@mui/material";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import dayjs from "dayjs";
-import { IJob, submitJob, uploadTaskScript } from "../api/job";
+import Box from "@mui/material/Box";
 import { Theme, styled, useTheme } from "@mui/material/styles";
 import { DateTimeValidationError } from "@mui/x-date-pickers";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import dayjs from "dayjs";
+import * as React from "react";
+import { loginAction } from "../actions/authActions";
+import { IJob, submitJob, uploadTaskScript } from "../api/job";
+import { getCookie } from "../utils/common";
+import { useRouter } from "next/navigation";
 
 function generateCronExpression({
   scheduledDatetime,
@@ -50,8 +52,6 @@ function generateCronExpression({
   cronMin = scheduledDatetime.minute().toString();
   cronHour = scheduledDatetime.hour().toString();
 
-  console.log(weekdays);
-
   switch (frequency) {
     case "daily":
       break;
@@ -75,12 +75,12 @@ function generateCronExpression({
   return cronExpression;
 }
 
-export default function ScheduleForm() {
+export default function ScheduleForm({ userId }: { userId: string }) {
   const initialJob = {
     JobName: "",
     IsRecurring: false,
     NextRunTime: 0,
-    UserID: 1,
+    UserID: userId,
     Cron: "",
     IsDisabled: false,
   };
@@ -103,6 +103,30 @@ export default function ScheduleForm() {
   const [file, setFile] = React.useState<any>();
   const fileRef = React.useRef<any>(null);
 
+  const router = useRouter();
+
+  React.useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    if (queryParams.has("code")) {
+      const code = queryParams.get("code") || "";
+      const state = queryParams.get("state") || "";
+
+      window.history.replaceState({}, document.title, "/");
+      console.log("login...");
+      const cookieState = getCookie("state") || "";
+      const nonce = getCookie("nonce") || "";
+      // console.log("state", state);
+      // console.log("nonce", nonce);
+
+      loginAction(code, state, cookieState, nonce);
+      // const token = getCookie("Authorization");
+      // console.log(token);
+
+      // To remove query parameters from url
+      router.push("/");
+    }
+  }, [router]);
+
   const errorMessage = React.useMemo(() => {
     switch (error) {
       case "disablePast": {
@@ -119,24 +143,28 @@ export default function ScheduleForm() {
     e.preventDefault();
 
     // form validation
+    if (!userId) {
+      setOpenSnackBar(true);
+      setSnackbarMessage("Please login first");
+      return;
+    }
 
     if (scheduledDatetime.unix() < dayjs().unix()) {
       setError("disablePast");
       return;
     }
 
-    let nextRunTimeUnix = 0;
+    let nextRunTimeUnix = scheduledDatetime.unix();
     const payload: IJob = {
       ...job,
+      UserID: userId,
     };
 
-    // update next run time for one-time job
+    // update next run time for both one-time and recurring job
+    payload["NextRunTime"] = nextRunTimeUnix;
     // console.log(job);
 
-    if (!job.IsRecurring) {
-      nextRunTimeUnix = scheduledDatetime.unix();
-      payload["NextRunTime"] = nextRunTimeUnix;
-    } else {
+    if (job.IsRecurring) {
       const cronExpression = generateCronExpression({
         scheduledDatetime,
         frequency: recurringFrequency,

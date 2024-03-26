@@ -8,13 +8,13 @@ import (
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
 	"job-scheduler/api/utils"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func GetAllJobs(c *gin.Context) {
@@ -67,13 +67,6 @@ func CreateJobs(c *gin.Context) {
 			c.AbortWithError(422, errors.New("cron cannot be empty"))
 			return
 		}
-		// cronExp, err := cronexpr.Parse(job.Cron)
-		// if err != nil {
-		// 	c.AbortWithError(422, errors.New("invalid cron expression"))
-		// 	return
-		// }
-		// nextRunTimeUnix := cronExp.Next(time.Now().UTC()).Unix()
-		// jobM["NextRunTime"] = nextRunTimeUnix
 	}
 
 	result := initializers.Db.Model(&job).Create(&job)
@@ -95,7 +88,15 @@ func GetOneJob(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
-		log.Fatal(result.Error)
+		fmt.Println(result.Error)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	err := requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
 	}
 
 	c.JSON(http.StatusOK, job)
@@ -103,6 +104,23 @@ func GetOneJob(c *gin.Context) {
 
 func GetOneJobExecutions(c *gin.Context) {
 	id := c.Param("id")
+
+	var job models.Job
+	err := initializers.Db.First(&job, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusOK, gin.H{})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
 
 	var executions []models.Execution
 	m := make(map[string]interface{})
@@ -128,7 +146,23 @@ func UpdateOneJob(c *gin.Context) {
 	err = json.Unmarshal(body, &jobUpdate)
 
 	if err != nil {
-		c.AbortWithError(400, err)
+		c.AbortWithError(422, err)
+		return
+	}
+
+	err = initializers.Db.First(&job, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(400, gin.H{"error": "Record not found"})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
 		return
 	}
 
@@ -146,6 +180,7 @@ func UpdateOneJobRetryCount(c *gin.Context) {
 	result := initializers.Db.Model(&job).Where("id = ? AND retry_count = ?", id, job.RetryCount).Update("retry_count", job.RetryCount+1)
 	if result.Error != nil {
 		c.AbortWithStatus(500)
+		return
 	}
 
 	c.Status(202)
@@ -154,9 +189,29 @@ func UpdateOneJobRetryCount(c *gin.Context) {
 func DeleteOneJob(c *gin.Context) {
 	id := c.Param("id")
 
+	var job models.Job
+
+	err := initializers.Db.First(&job, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(400, gin.H{"error": "Record not found"})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
+
 	result := initializers.Db.Delete(&models.Job{}, id)
 	if result.Error != nil {
 		c.AbortWithStatus(500)
+		return
 	}
 
 	// response
@@ -167,14 +222,18 @@ func GetTaskScript(c *gin.Context) {
 	jobId := c.Param("id")
 
 	var job models.Job
-	result := initializers.Db.First(&job, jobId)
-	if result.Error != nil {
+	err := initializers.Db.First(&job, jobId).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(200, gin.H{})
+			return
+		}
+		fmt.Println(err)
 		c.AbortWithStatus(500)
+		return
 	}
 
-	filePath := fmt.Sprintf(".%s", job.TaskPath)
-
-	c.File(filePath)
+	c.File(job.TaskPath)
 }
 
 func UploadTaskScript(c *gin.Context) {
@@ -182,14 +241,37 @@ func UploadTaskScript(c *gin.Context) {
 	jobId := c.Param("id")
 	var job models.Job
 
+	err := initializers.Db.First(&job, jobId).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(400, gin.H{"error": "Record not found"})
+			return
+		}
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
+
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
+
 	file, _ := c.FormFile("file")
 
 	directory, _ := os.Getwd()
+
 	relativeFilePath := fmt.Sprintf("/blob/%s/%s", jobId, file.Filename)
 	filePath := fmt.Sprintf("%s/%s", directory, relativeFilePath)
 	// fmt.Println(filePath)
 	// Upload file
-	c.SaveUploadedFile(file, filePath)
+	err = c.SaveUploadedFile(file, filePath)
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
 
 	initializers.Db.First(&job, jobId)
 
@@ -198,4 +280,12 @@ func UploadTaskScript(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusOK, gin.H{"filepath": relativeFilePath})
+}
+
+func requireOwner(c *gin.Context, ownerId uint) error {
+	requestUser, _ := c.Get("user")
+	if requestUser.(models.User).ID != ownerId && requestUser.(models.User).Role != "admin" {
+		return errors.New("forbidden")
+	}
+	return nil
 }

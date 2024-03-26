@@ -2,13 +2,15 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func GetAllExecutions(c *gin.Context) {
@@ -56,13 +58,15 @@ func GetOneExecution(c *gin.Context) {
 	id := c.Param("id")
 
 	var execution models.Execution
-	result := initializers.Db.First(&execution, id)
-	if result.Error != nil {
-		if execution.ID == 0 {
+	err := initializers.Db.First(&execution, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusOK, gin.H{})
 			return
 		}
-		log.Fatal(result.Error)
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
 	}
 
 	c.JSON(http.StatusOK, execution)

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"job-scheduler/worker/models"
-	"net/http"
+	"job-scheduler/worker/utils"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,7 +15,12 @@ import (
 
 func RunUserTask(job models.Job) error {
 	// check status on job table
-	isRunning := checkJobStatusRunning(job)
+	isRunning, err := checkJobStatusRunning(job)
+	if err != nil {
+		fmt.Println("Failed to check status", err)
+		return err
+	}
+
 	if isRunning {
 		fmt.Println("Job is already running, skipped exeuction.")
 		return nil
@@ -49,7 +54,8 @@ func RunUserTask(job models.Job) error {
 func runJob(job models.Job) error {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := fmt.Sprintf("%s/scheduler/jobs/%s", API_BASE, fmt.Sprint(job.ID))
-	resp, err := http.Get(endpoint)
+	resp, err := utils.GetRequest(endpoint)
+
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -88,6 +94,7 @@ func runScript(filePath string) error {
 		fmt.Println("No script to run. Skipped.")
 		return nil
 	}
+	fmt.Println("Running script...")
 
 	// get file type
 	filePathSplit := strings.Split(filePath, ".")

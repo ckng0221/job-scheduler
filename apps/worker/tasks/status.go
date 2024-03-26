@@ -1,13 +1,11 @@
 package tasks
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"job-scheduler/worker/models"
 	"job-scheduler/worker/utils"
-	"net/http"
 	"os"
 	"time"
 
@@ -103,23 +101,26 @@ func updateJobExecution(job models.Job, executionId uint) {
 	updateNextRunTime(job)
 }
 
-func checkJobStatusRunning(job models.Job) bool {
+func checkJobStatusRunning(job models.Job) (bool, error) {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/jobs/" + fmt.Sprint(job.ID)
-	resp, err := http.Get(endpoint)
+
+	resp, err := utils.GetRequest(endpoint)
 	if err != nil {
 		fmt.Println(err)
+		return false, err
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println(err)
+		return false, err
 	}
 
 	json.Unmarshal(body, &job)
 	fmt.Println("status", job.IsRunning)
 
-	return job.IsRunning
+	return job.IsRunning, nil
 }
 
 func createExecution(job models.Job) (uint, error) {
@@ -132,7 +133,7 @@ func createExecution(job models.Job) (uint, error) {
 
 	payloadByte, _ := json.Marshal(payload)
 
-	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(payloadByte))
+	resp, err := utils.PostRequest(endpoint, payloadByte)
 	if err != nil {
 		fmt.Println(err)
 		return 0, err

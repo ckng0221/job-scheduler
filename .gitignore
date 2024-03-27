@@ -131,3 +131,5 @@ dist
 
 .turbo
 .DS_Store
+
+/blob

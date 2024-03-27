@@ -13,11 +13,11 @@ import (
 var Db *gorm.DB
 
 func ConnectToDb() {
-	env := os.Getenv("ENV")
+	// env := os.Getenv("ENV")
 	logLevel := logger.Silent
-	if env == "development" {
-		logLevel = logger.Info
-	}
+	// if env == "development" {
+	// 	logLevel = logger.Info
+	// }
 
 	var err error
 	dsn := os.Getenv("DB_URL")

@@ -13,6 +13,7 @@ services:
       - ./apps/api/.env
     environment:
       - DB_URL=dbuser:dbuser123@tcp(mysql:3306)/job-scheduler?charset=utf8mb4&parseTime=True&loc=UTC
+      - BLOB_DIRECTORY=/home/blob
     depends_on:
       - mysql
     restart: always
@@ -22,6 +23,8 @@ services:
       - mysql
     ports:
       - "8000:8000"
+    volumes:
+      - blob-storage:/home/blob
 
   scheduler:
     build:
@@ -109,15 +112,16 @@ services:
 
 volumes:
   mysql-db:
+  blob-storage:
 networks:
   node-network:
     driver: bridge
 # ---
 # Comands
-# docker-compose -f docker-compose.prod.yml up -d mysql   # start mysql first, as it takes time to get ready
-# docker compose -f docker-compose.prod.yml up -d
-# docker compose -f docker-compose.prod.yml up -d --build
-# docker compose -f docker-compose.prod.yml down
-# docker compose -f docker-compose.prod.yml down -v  #Delete volume
+# docker-compose up -d mysql   # start mysql first, as it takes time to get ready
+# docker compose up -d
+# docker compose up -d --build
+# docker compose down
+# docker compose down -v  #Delete volume
 
 # NOTE: api container could fail to run before mysql is ready. Will restart when failing

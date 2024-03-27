@@ -12,6 +12,7 @@ services:
     env_file:
       - ./apps/api/.env
     environment:
+      - ENV=production
       - DB_URL=dbuser:dbuser123@tcp(mysql:3306)/job-scheduler?charset=utf8mb4&parseTime=True&loc=UTC
       - BLOB_DIRECTORY=/home/blob
     depends_on:

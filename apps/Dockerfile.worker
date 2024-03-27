@@ -35,5 +35,3 @@ ENTRYPOINT ["/go-app"]
 
 # docker build --build-arg="service=worker" -f ./apps/Dockerfile.service . -t jobscheduler-worker
 # docker run --env-file ./apps/worker/.env jobscheduler-worker
-
-# TODO: may need a separate blob service to allow worker to get the script file.

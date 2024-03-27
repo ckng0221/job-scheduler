@@ -46,11 +46,12 @@ services:
     links:
       - rabbitmq
       - api
+    restart: always
 
   worker:
     build:
       context: .
-      dockerfile: ./apps/Dockerfile.service
+      dockerfile: ./apps/Dockerfile.worker
       target: production
       args:
         service: worker
@@ -59,6 +60,7 @@ services:
     environment:
       - RABBIT_MQ_HOST=amqp://rabbitmq:5672
       - API_BASE_URL=http://api:8000
+      - SUPPORTED_EXTENSIONS=sh
     depends_on:
       - rabbitmq
     networks:
@@ -66,6 +68,9 @@ services:
     links:
       - rabbitmq
       - api
+    volumes:
+      - blob-storage:/home/blob
+    restart: always
 
   ui:
     build:
@@ -84,6 +89,7 @@ services:
       - api
     networks:
       - node-network
+    restart: always
 
   # Dependencies
   rabbitmq:

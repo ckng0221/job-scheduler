@@ -234,6 +234,12 @@ func GetTaskScript(c *gin.Context) {
 		return
 	}
 
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
+
 	c.File(job.TaskPath)
 }
 

@@ -10,6 +10,8 @@ import (
 	"job-scheduler/worker/utils"
 	"os"
 	"os/exec"
+
+	"slices"
 	"strings"
 )
 
@@ -101,9 +103,11 @@ func runScript(filePath string) error {
 	fileExtension := filePathSplit[len(filePathSplit)-1]
 	program, err := getProgramName(fileExtension)
 	if err != nil {
-		fmt.Println(err)
 		return err
+	}
 
+	if fileExist := utils.CheckFileExists(filePath); !fileExist {
+		return fmt.Errorf("filepath: '%s' does not exists", filePath)
 	}
 
 	cmd := exec.Command(program, filePath)
@@ -131,9 +135,25 @@ func getProgramName(fileExtension string) (string, error) {
 		program = "sh"
 	case "js":
 		program = "node"
+	case "py":
+		program = "python"
 	}
+
 	if program == "" {
-		return "", errors.New("invalid file type")
+		return "", fmt.Errorf("file extension '%s' is not supported", fileExtension)
 	}
+
+	supportedFileExtensionsString := os.Getenv("SUPPORTED_EXTENSIONS")
+	if supportedFileExtensionsString == "" {
+		return "", errors.New("no file extensions specified in environment variables")
+	}
+
+	var supportedFileExtensions = strings.Split(supportedFileExtensionsString, ",")
+	isSupported := slices.Contains(supportedFileExtensions, fileExtension)
+
+	if !isSupported {
+		return "", fmt.Errorf("%s is not supported", program)
+	}
+
 	return program, nil
 }

@@ -20,17 +20,20 @@ func RequireAuth(c *gin.Context) {
 	bearerToken := bearerTokenArr[len(bearerTokenArr)-1]
 	apiKey := c.GetHeader("x-api-key")
 	if apiKey == os.Getenv("ADMIN_API_KEY") {
+		// TODO: try to solve issue for bot
 		// Find the user with token sub
-		var user models.User
-		initializers.Db.Where("id = ?", 1).First(&user)
+		// var user models.User
+		// initializers.Db.Where("id = ?", 1).First(&user)
 
-		if user.ID == 0 {
-			fmt.Println("User not found")
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
+		// if user.ID == 0 {
+		// 	fmt.Println("User not found")
+		// 	c.AbortWithStatus(http.StatusUnauthorized)
+		// 	return
+		// }
 		// fmt.Println(user.ID)
-		c.Set("user", user)
+
+		// create a temp admin user object
+		c.Set("user", models.User{Role: "admin"})
 
 		// Attach to req
 

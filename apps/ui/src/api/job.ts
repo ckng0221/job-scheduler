@@ -1,6 +1,6 @@
 import { getCookie } from "../utils/common";
 
-const BASE_URL = "http://localhost:8000";
+const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST;
 
 export interface IJob {
   JobName: string;
@@ -16,7 +16,7 @@ export interface IJobRead extends IJob {
 }
 
 export async function submitJob(payload: IJob) {
-  const url = `${BASE_URL}/scheduler/jobs`;
+  const url = `${BACKEND_HOST}/scheduler/jobs`;
   const headers = new Headers();
   headers.append("Content-Type", "application/json");
   headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
@@ -31,7 +31,7 @@ export async function submitJob(payload: IJob) {
 }
 
 export async function uploadTaskScript(jobId: string, file: File) {
-  const url = `${BASE_URL}/scheduler/jobs/${jobId}/task-script`;
+  const url = `${BACKEND_HOST}/scheduler/jobs/${jobId}/task-script`;
   const formdata = new FormData();
   formdata.append("file", file, file.name);
   const headers = new Headers();

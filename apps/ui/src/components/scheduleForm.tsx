@@ -183,7 +183,10 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     if (res?.ok) {
       const data = await res.json();
       if (file && file.size > 0) {
-        await uploadTaskScript(data.ID, file);
+        const res = await uploadTaskScript(data.ID, file);
+        if (!res.ok) {
+          alert("Faield to upload script.");
+        }
       }
 
       setOpenSnackBar(true);

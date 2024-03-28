@@ -1,0 +1,134 @@
+# NOTE: The ports of internal services (eg. book, customer, payment, borrowing) are not exposed in production
+
+services:
+  # app services
+  api:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.service
+      target: production
+      args:
+        service: api
+    env_file:
+      - ./apps/api/.env
+    environment:
+      - ENV=production
+      - DB_URL=dbuser:dbuser123@tcp(mysql:3306)/job-scheduler?charset=utf8mb4&parseTime=True&loc=UTC
+      - BLOB_DIRECTORY=/home/blob
+    depends_on:
+      - mysql
+    restart: always
+    networks:
+      - node-network
+    links:
+      - mysql
+    ports:
+      - "8000:8000"
+    volumes:
+      - blob-storage:/home/blob
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.service
+      target: production
+      args:
+        service: scheduler
+    env_file:
+      - ./apps/scheduler/.env
+    environment:
+      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
+      - API_BASE_URL=http://api:8000
+    depends_on:
+      - rabbitmq
+      - api
+    networks:
+      - node-network
+    links:
+      - rabbitmq
+      - api
+    restart: always
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.worker
+      target: production
+      args:
+        service: worker
+    env_file:
+      - ./apps/worker/.env
+    environment:
+      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
+      - API_BASE_URL=http://api:8000
+      - SUPPORTED_EXTENSIONS=sh
+    depends_on:
+      - rabbitmq
+    networks:
+      - node-network
+    links:
+      - rabbitmq
+      - api
+    volumes:
+      - blob-storage:/home/blob
+    restart: always
+
+  ui:
+    build:
+      context: .
+      dockerfile: ./apps/Dockerfile.ui
+    env_file:
+      - ./apps/ui/.env.production
+    environment:
+      - BACKEND_HOST_INTERNAL=http://api:8000
+      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    links:
+      - api
+    networks:
+      - node-network
+    restart: always
+
+  # Dependencies
+  rabbitmq:
+    image: rabbitmq
+    # ports: # optional expose
+    #   - "5672:5672"
+    networks:
+      - node-network
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD_ENCRYPTED: false
+      MYSQL_DATABASE: "job-scheduler"
+      MYSQL_USER: "dbuser"
+      MYSQL_ROOT_PASSWORD: "dbuser123"
+      MYSQL_PASSWORD: "dbuser123"
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    ports:
+      - "3309:3306"
+    volumes:
+      - mysql-db:/var/lib/mysql
+    networks:
+      - node-network
+
+volumes:
+  mysql-db:
+  blob-storage:
+networks:
+  node-network:
+    driver: bridge
+# ---
+# Comands
+# docker compose up -d
+# docker compose up -d --build
+# docker-compose up -d mysql   # start mysql only
+# docker compose down
+# docker compose down -v  # delete volume
+
+# NOTE: api container could fail to run before mysql is ready. Will restart when failing

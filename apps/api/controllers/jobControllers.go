@@ -10,6 +10,7 @@ import (
 	"job-scheduler/api/utils"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -233,6 +234,12 @@ func GetTaskScript(c *gin.Context) {
 		return
 	}
 
+	err = requireOwner(c, job.UserID)
+	if err != nil {
+		c.AbortWithStatus(403)
+		return
+	}
+
 	c.File(job.TaskPath)
 }
 
@@ -260,26 +267,38 @@ func UploadTaskScript(c *gin.Context) {
 
 	file, _ := c.FormFile("file")
 
-	directory, _ := os.Getwd()
+	var blobDirectory string
+	envBlobDirectory := os.Getenv("BLOB_DIRECTORY")
 
-	relativeFilePath := fmt.Sprintf("/blob/%s/%s", jobId, file.Filename)
-	filePath := fmt.Sprintf("%s/%s", directory, relativeFilePath)
-	// fmt.Println(filePath)
+	if envBlobDirectory == "" {
+		blobDirectory, _ = os.Getwd()
+		blobDirectory = filepath.Join(filepath.Dir(filepath.Dir(blobDirectory)), "blob")
+	} else {
+		blobDirectory = envBlobDirectory
+	}
+	blobFilePath := filepath.Join(blobDirectory, jobId, file.Filename)
+	fmt.Println("blobFilePath", blobFilePath)
+
 	// Upload file
-	err = c.SaveUploadedFile(file, filePath)
+	err = c.SaveUploadedFile(file, blobFilePath)
 	if err != nil {
 		fmt.Println(err)
 		c.AbortWithStatus(500)
 		return
 	}
 
-	initializers.Db.First(&job, jobId)
+	err = initializers.Db.First(&job, jobId).Error
+	if err != nil {
+		fmt.Println(err)
+		c.AbortWithStatus(500)
+		return
+	}
 
 	initializers.Db.Model(&job).Updates(map[string]interface{}{
-		"TaskPath": filePath,
+		"TaskPath": blobFilePath,
 	})
 
-	c.JSON(http.StatusOK, gin.H{"filepath": relativeFilePath})
+	c.JSON(http.StatusOK, gin.H{"filepath": blobFilePath})
 }
 
 func requireOwner(c *gin.Context, ownerId uint) error {

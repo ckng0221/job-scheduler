@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/ckng0221/job-scheduler/actions/workflows/ci.yml/badge.svg)](https://github.com/ckng0221/job-scheduler/actions/workflows/ci.yml)
 
-Job Scheduler is a proof of concept (POC) distributed job scheduler written in [Go](https://go.dev/) and [TypeScript](https://www.typescriptlang.org/). It consists of four main components:
+Job Scheduler is a proof of concept (POC) distributed job scheduler written in [Go](https://go.dev/) and [TypeScript](https://www.typescriptlang.org/). The application allows users to submit their jobs and run on desired schedule, for both one-time trigger and recurrence schedule. It consists of four main components:
 
 - `API`: Responsible for creating jobs and executions, user authentication, and other business logic.
 - `Scheduler`: Polls the latest active jobs from the database and submits them to the job queue.

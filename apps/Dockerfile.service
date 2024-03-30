@@ -9,7 +9,7 @@ WORKDIR /app
 # copy workspace & utils
 COPY go.work go.work.sum ./
 COPY packages/utils/  ./packages/utils/
-# copy all go mod sum #TODO: check if can dont download all
+
 COPY apps/api/go.mod apps/api/go.sum ./apps/api/
 COPY apps/scheduler/go.mod apps/scheduler/go.sum ./apps/scheduler/
 COPY apps/worker/go.mod apps/worker/go.sum ./apps/worker/

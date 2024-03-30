@@ -2,6 +2,13 @@ package models
 
 import "time"
 
+type Status string
+
+const (
+	Complete Status = "complete"
+	Failed   Status = "failed"
+)
+
 type Job struct {
 	ID          uint
 	JobName     string
@@ -22,5 +29,5 @@ type Execution struct {
 	Job         *Job
 	CreatedAt   time.Time
 	CompletedAt *time.Time
-	Status      string
+	Status      Status
 }

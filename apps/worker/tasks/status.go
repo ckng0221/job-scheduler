@@ -73,9 +73,7 @@ func updateRetryCount(job models.Job) error {
 	return err
 }
 
-type RunStatus string
-
-func updateExecutionStatus(executionId uint, status string) {
+func updateExecutionStatus(executionId uint, status models.Status) {
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/executions/" + fmt.Sprint(executionId)
 	payload := map[string]interface{}{
@@ -97,7 +95,7 @@ func updateExecutionStatus(executionId uint, status string) {
 }
 
 func updateJobExecution(job models.Job, executionId uint) {
-	updateExecutionStatus(executionId, "complete")
+	updateExecutionStatus(executionId, models.Complete)
 	updateNextRunTime(job)
 }
 

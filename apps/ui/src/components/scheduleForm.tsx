@@ -645,6 +645,12 @@ function TaskFileUpload({
   fileRef: any;
   setFile: React.Dispatch<any>;
 }) {
+  const acceptedExts = process.env.NEXT_PUBLIC_SUPPORTED_EXTENSIONS || "";
+  let acceptedExsString;
+  if (acceptedExts) {
+    acceptedExsString = acceptedExts.split(",").sort().join(", ");
+  }
+
   return (
     <div className="my-4">
       <label
@@ -659,7 +665,7 @@ function TaskFileUpload({
         id="file_input"
         name="task script"
         type="file"
-        accept=".js,.sh"
+        accept={acceptedExts}
         onChange={(e) => setFile(e?.target?.files?.[0])}
         ref={fileRef}
       />
@@ -667,7 +673,7 @@ function TaskFileUpload({
         className="mt-1 text-sm text-gray-500 dark:text-gray-300"
         id="file_input_help"
       >
-        .js, .sh
+        {acceptedExsString}
       </p>
     </div>
   );

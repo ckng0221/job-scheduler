@@ -1,15 +1,10 @@
 package initializers
 
 import (
-	"fmt"
-
-	"github.com/joho/godotenv"
+	"job-scheduler/utils"
 )
 
 func LoadEnvVariables() {
-	err := godotenv.Load()
-
-	if err != nil {
-		fmt.Println("Failed to load .env file")
-	}
+	requiredEnvs := []string{"DB_URL", "JWT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "LOGIN_REDIRECT_URL", "ADMIN_API_KEY"}
+	utils.LoadEnv(requiredEnvs)
 }

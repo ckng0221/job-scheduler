@@ -1,19 +1,19 @@
 package main
 
 import (
-	"job-scheduler/scheduler/core"
+	"job-scheduler/utils"
 
-	"github.com/joho/godotenv"
 	"github.com/robfig/cron/v3"
 )
 
 func init() {
-	godotenv.Load()
+	requiredEnv := []string{"API_BASE_URL", "RABBIT_MQ_HOST", "JOB_QUEUE_NAME", "ADMIN_API_KEY"}
+	utils.LoadEnv(requiredEnv)
 }
 
 func main() {
 	c := cron.New(cron.WithSeconds())
-	c.AddFunc("*/5 * * * * *", core.PublishActiveJobs)
+	c.AddFunc("*/5 * * * * *", PublishActiveJobs)
 	c.Start()
 
 	select {}

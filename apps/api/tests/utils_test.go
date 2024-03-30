@@ -2,7 +2,7 @@ package tests
 
 import (
 	"fmt"
-	"job-scheduler/api/utils"
+	"job-scheduler/utils"
 	"testing"
 	"time"
 )

@@ -7,7 +7,7 @@ import (
 	"job-scheduler/api/config"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
-	"job-scheduler/api/utils"
+	"job-scheduler/utils"
 	"net/http"
 
 	"github.com/coreos/go-oidc/v3/oidc"

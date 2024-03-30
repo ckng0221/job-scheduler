@@ -6,10 +6,18 @@ ARG service
 
 WORKDIR /app
 
-COPY apps/${service}/go.mod apps/${service}/go.sum ./
+# copy workspace & utils
+COPY go.work go.work.sum ./
+COPY packages/utils/  ./packages/utils/
+
+COPY apps/api/go.mod apps/api/go.sum ./apps/api/
+COPY apps/scheduler/go.mod apps/scheduler/go.sum ./apps/scheduler/
+COPY apps/worker/go.mod apps/worker/go.sum ./apps/worker/
+
+WORKDIR /app/apps/${service}
 RUN go mod download
 
-COPY apps/${service}/ .
+COPY apps/${service}/ ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /${service}
 
@@ -35,6 +43,3 @@ ENTRYPOINT ["/go-app"]
 # Eg.
 # docker build --build-arg="service=api" -f ./apps/Dockerfile.service . -t jobscheduler-api
 # docker run -p 8000:8000 --env-file ./apps/api/.env jobscheduler-api
-
-# docker build --build-arg="service=worker" -f ./apps/Dockerfile.service . -t jobscheduler-worker
-# docker run --env-file ./apps/worker/.env jobscheduler-worker

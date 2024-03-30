@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"job-scheduler/utils"
 	"job-scheduler/worker/models"
-	"job-scheduler/worker/utils"
 	"os"
 	"os/exec"
 
@@ -40,7 +40,7 @@ func RunUserTask(job models.Job) error {
 
 	if err != nil {
 		// update execution to failed
-		updateExecutionStatus(executionId, "failed")
+		updateExecutionStatus(executionId, models.Failed)
 		updateRetryCount(job)
 		return err
 

@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"job-scheduler/utils"
 	"job-scheduler/worker/models"
 	"job-scheduler/worker/tasks"
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -69,7 +69,8 @@ func listenToQueue(queueName string) {
 }
 
 func init() {
-	godotenv.Load()
+	requiredEnv := []string{"API_BASE_URL", "RABBIT_MQ_HOST", "JOB_QUEUE_NAME", "ADMIN_API_KEY", "SUPPORTED_EXTENSIONS"}
+	utils.LoadEnv(requiredEnv)
 }
 
 func processJob(d amqp.Delivery) {

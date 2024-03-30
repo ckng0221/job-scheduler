@@ -6,14 +6,37 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
+
+func CheckFileExists(filePath string) bool {
+	_, error := os.Stat(filePath)
+	return !errors.Is(error, os.ErrNotExist)
+}
+
+func LoadEnv(requiredEnv []string) {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("failed to load .env file")
+	}
+	for _, envName := range requiredEnv {
+		env := os.Getenv(envName)
+		if env == "" {
+			log.Fatalf("environment variable '%s' is required", envName)
+		}
+	}
+}
 
 func ConvertStructToMap(obj interface{}) (map[string]interface{}, error) {
 	var objInterface map[string]interface{}

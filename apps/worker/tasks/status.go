@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"job-scheduler/utils"
 	"job-scheduler/worker/models"
-	"job-scheduler/worker/utils"
 	"os"
 	"time"
 

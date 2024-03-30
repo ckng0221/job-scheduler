@@ -1,4 +1,4 @@
-package core
+package main
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"job-scheduler/utils"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
@@ -32,14 +32,8 @@ func getActiveJobs() ([]Job, error) {
 
 	API_BASE := os.Getenv("API_BASE_URL")
 	endpoint := API_BASE + "/scheduler/jobs?active=true"
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
-	}
-	req.Header.Add("x-api-key", os.Getenv("ADMIN_API_KEY"))
-	resp, err := client.Do(req)
+
+	resp, err := utils.GetRequest(endpoint)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err

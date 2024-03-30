@@ -7,7 +7,7 @@ import (
 	"io"
 	"job-scheduler/api/initializers"
 	"job-scheduler/api/models"
-	"job-scheduler/api/utils"
+	"job-scheduler/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

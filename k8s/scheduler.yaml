@@ -1,28 +1,30 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose convert
-    kompose.version: 1.32.0 (HEAD)
   labels:
-    io.kompose.service: scheduler
+    app: scheduler
   name: scheduler
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: scheduler
+      app: scheduler
   template:
     metadata:
-      annotations:
-        kompose.cmd: kompose convert
-        kompose.version: 1.32.0 (HEAD)
       labels:
-        io.kompose.network/job-scheduler-node-network: "true"
-        io.kompose.service: scheduler
+        app: scheduler
     spec:
       containers:
-        - env:
+        - name: scheduler
+          image: ckng21/job-scheduler-scheduler
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          env:
             - name: ADMIN_API_KEY
               valueFrom:
                 configMapKeyRef:
@@ -43,15 +45,6 @@ spec:
                 configMapKeyRef:
                   key: RABBIT_MQ_HOST
                   name: scheduler-env
-          image: ckng21/job-scheduler-scheduler
-          name: scheduler
-          resources:
-            limits:
-              memory: 512Mi
-              cpu: "1"
-            requests:
-              memory: 256Mi
-              cpu: "0.2"
       restartPolicy: Always
 ---
 apiVersion: v1
@@ -63,5 +56,5 @@ data:
 kind: ConfigMap
 metadata:
   labels:
-    io.kompose.service: scheduler-env
+    app: scheduler-env
   name: scheduler-env

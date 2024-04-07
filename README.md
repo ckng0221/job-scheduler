@@ -92,8 +92,8 @@ docker compose down
 
 ```bash
 # update configmap and rename api.configmap.example.yaml to api.configmap.yaml
-# apply objects
-kubectl apply -f k8s/api.yaml k8s/api.configmap.yaml k8s/mysql.yaml k8s/ui.yaml
+# apply yaml files in k8s folder
+kubectl apply -f k8s
 
 kubectl port-forward services/api 8000:8000
 kubectl port-forward services/ui 3000:3000

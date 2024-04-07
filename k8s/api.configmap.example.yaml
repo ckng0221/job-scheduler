@@ -14,16 +14,3 @@ metadata:
   labels:
     io.kompose.service: api-env
   name: api-env
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  labels:
-    io.kompose.service: blob-storage
-  name: blob-storage
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 100Mi

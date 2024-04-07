@@ -90,15 +90,24 @@ docker compose down
 
 ### Run with Kubernetes
 
+To run in Kubernetes on local machine, may need to have local Kubernetes cluster, using tool such as `minikube`.
+
+Before running `minikube`, update the configmap in each Kubernetes yaml file accordingly.
+Update the configurations in `api.configmap.example.yaml` accordingly.
+Rename it to `api.configmap.yaml` (optional)
+
 ```bash
-# update configmap and rename api.configmap.example.yaml to api.configmap.yaml
-# apply yaml files in k8s folder
+# Start minikube
+minikube start
+
+# Apply yaml files in k8s folder
 kubectl apply -f k8s
 
+# Port forwarding
 kubectl port-forward services/api 8000:8000
 kubectl port-forward services/ui 3000:3000
 
-# TO access from minikube
+# To access from minikube
 minikube service api --url
 minikube service ui --url
 ```

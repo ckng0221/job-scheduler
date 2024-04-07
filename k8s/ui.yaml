@@ -21,7 +21,7 @@ spec:
           image: ckng21/job-scheduler-ui:latest
           ports:
             - containerPort: 3000
-              hostPort: 3000
+              # hostPort: 3000
               protocol: TCP
           resources:
             limits:
@@ -36,14 +36,16 @@ spec:
                 configMapKeyRef:
                   key: BACKEND_HOST_INTERNAL
                   name: ui-env
+            - name: PORT
+              value: "3000"
       restartPolicy: Always
 ---
 apiVersion: v1
 kind: Service
 metadata:
+  name: ui
   labels:
     app: ui
-  name: ui
 spec:
   type: NodePort
   ports:
@@ -59,6 +61,7 @@ data:
   BACKEND_HOST_INTERNAL: http://api:8000
 kind: ConfigMap
 metadata:
+  name: ui-env
   labels:
     app: ui-env
-  name: ui-env
+# Note: May have issue in port forwarding

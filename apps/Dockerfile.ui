@@ -1,4 +1,6 @@
 FROM node:alpine As builder
+ARG extensions
+ENV NEXT_PUBLIC_SUPPORTED_EXTENSIONS=${extensions}
 
 WORKDIR /app
 

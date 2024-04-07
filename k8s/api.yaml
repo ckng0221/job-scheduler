@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.32.0 (HEAD)
+  labels:
+    io.kompose.service: api
+  name: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      io.kompose.service: api
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.32.0 (HEAD)
+      labels:
+        io.kompose.network/job-scheduler-node-network: "true"
+        io.kompose.service: api
+    spec:
+      containers:
+        - env:
+            - name: ADMIN_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: ADMIN_API_KEY
+                  name: env
+            - name: BLOB_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  key: BLOB_DIRECTORY
+                  name: env
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: DB_URL
+                  name: env
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  key: ENV
+                  name: api-env
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_CLIENT_ID
+                  name: api-env
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  key: GOOGLE_CLIENT_SECRET
+                  name: api-env
+            - name: JWT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  key: JWT_SECRET
+                  name: api-env
+            - name: LOGIN_REDIRECT_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOGIN_REDIRECT_URL
+                  name: api-env
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: PORT
+                  name: api-env
+          image: ckng21/job-scheduler-api:latest
+          name: api
+          ports:
+            - containerPort: 8000
+              # hostPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /home/blob
+              name: blob-storage
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+      restartPolicy: Always
+      volumes:
+        - name: blob-storage
+          persistentVolumeClaim:
+            claimName: blob-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.32.0 (HEAD)
+  labels:
+    io.kompose.service: api
+  name: api
+spec:
+  type: LoadBalancer
+  ports:
+    - name: "apiport"
+      port: 8000
+      targetPort: 8000
+      # nodePort: 30080 # exposed to host
+  selector:
+    io.kompose.service: api

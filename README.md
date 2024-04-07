@@ -88,6 +88,21 @@ docker compose up -d
 docker compose down
 ```
 
+### Run with Kubernetes
+
+```bash
+# update configmap and rename api.configmap.example.yaml to api.configmap.yaml
+# apply objects
+kubectl apply -f k8s/api.yaml k8s/api.configmap.yaml k8s/mysql.yaml k8s/ui.yaml
+
+kubectl port-forward services/api 8000:8000
+kubectl port-forward services/ui 3000:3000
+
+# TO access from minikube
+minikube service api --url
+minikube service ui --url
+```
+
 # Contributing
 
 Contributions are welcome! If you'd like to contribute to this project, please follow the guidelines outlined in CONTRIBUTING.md.

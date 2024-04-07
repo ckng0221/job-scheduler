@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.32.0 (HEAD)
+  labels:
+    io.kompose.service: scheduler
+  name: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: scheduler
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.32.0 (HEAD)
+      labels:
+        io.kompose.network/job-scheduler-node-network: "true"
+        io.kompose.service: scheduler
+    spec:
+      containers:
+        - env:
+            - name: ADMIN_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: ADMIN_API_KEY
+                  name: scheduler-env
+            - name: API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: API_BASE_URL
+                  name: scheduler-env
+            - name: JOB_QUEUE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: JOB_QUEUE_NAME
+                  name: scheduler-env
+            - name: RABBIT_MQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: RABBIT_MQ_HOST
+                  name: scheduler-env
+          image: ckng21/job-scheduler-scheduler
+          name: scheduler
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+      restartPolicy: Always
+---
+apiVersion: v1
+data:
+  ADMIN_API_KEY: trial123
+  API_BASE_URL: http://api:8000
+  JOB_QUEUE_NAME: job_queue
+  RABBIT_MQ_HOST: amqp://rabbitmq:5672
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: scheduler-env
+  name: scheduler-env

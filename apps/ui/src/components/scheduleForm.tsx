@@ -79,6 +79,7 @@ export default function ScheduleForm({ userId }: { userId: string }) {
   const initialJob = {
     JobName: "",
     IsRecurring: false,
+    FirstScheduledTime: 0,
     NextRunTime: 0,
     UserID: userId,
     Cron: "",
@@ -161,6 +162,7 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     };
 
     // update next run time for both one-time and recurring job
+    payload["FirstScheduledTime"] = nextRunTimeUnix;
     payload["NextRunTime"] = nextRunTimeUnix;
     // console.log(job);
 

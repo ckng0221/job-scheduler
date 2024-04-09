@@ -160,3 +160,19 @@ func Logout(c *gin.Context) {
 		"message": "logged out",
 	})
 }
+
+func requireOwner(c *gin.Context, ownerId uint) error {
+	requestUser, _ := c.Get("user")
+	if requestUser.(models.User).ID != ownerId && requestUser.(models.User).Role != "admin" {
+		return errors.New("forbidden")
+	}
+	return nil
+}
+
+func requireAdmin(c *gin.Context) error {
+	requestUser, _ := c.Get("user")
+	if requestUser.(models.User).Role != "admin" {
+		return errors.New("forbidden")
+	}
+	return nil
+}

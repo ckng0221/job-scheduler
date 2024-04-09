@@ -10,17 +10,18 @@ const (
 )
 
 type Job struct {
-	ID          uint
-	JobName     string
-	IsRecurring bool
-	NextRunTime int64
-	UserID      uint
-	Cron        string
-	IsCompleted bool
-	IsRunning   bool
-	IsDisabled  bool
-	RetryCount  uint16
-	TaskPath    string
+	ID                 uint
+	JobName            string
+	IsRecurring        bool
+	FirstScheduledTime int64
+	NextRunTime        int64
+	UserID             uint
+	Cron               string
+	IsCompleted        bool
+	IsRunning          bool
+	IsDisabled         bool
+	RetryCount         uint16
+	TaskPath           string
 }
 
 type Execution struct {

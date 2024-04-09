@@ -9,7 +9,7 @@ import (
 
 func JobRoutes(r *gin.RouterGroup) {
 	r.POST("/jobs", controllers.CreateJobs)
-	r.GET("/jobs", middleware.RequireAdmin, controllers.GetAllJobs)
+	r.GET("/jobs", controllers.GetAllJobs)
 	r.GET("/jobs/:id", controllers.GetOneJob)
 	r.GET("/jobs/:id/task-script", controllers.GetTaskScript)
 	r.POST("/jobs/:id/task-script", controllers.UploadTaskScript)

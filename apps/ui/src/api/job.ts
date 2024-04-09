@@ -5,6 +5,7 @@ const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST;
 export interface IJob {
   JobName: string;
   IsRecurring: boolean;
+  FirstScheduledTime: Number;
   NextRunTime: Number;
   UserID: string;
   Cron: string;
@@ -13,6 +14,26 @@ export interface IJob {
 
 export interface IJobRead extends IJob {
   ID: string;
+}
+
+export async function getUserJobs(userId: string) {
+  const url = `${BACKEND_HOST}/scheduler/jobs?`;
+  const headers = new Headers();
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
+
+  const res = fetch(
+    url +
+      new URLSearchParams({
+        user_id: userId,
+      }),
+    {
+      method: "GET",
+      headers: headers,
+    },
+  );
+
+  return res;
 }
 
 export async function submitJob(payload: IJob) {

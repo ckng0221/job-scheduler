@@ -37,6 +37,7 @@ Job Scheduler is a proof of concept (POC) distributed job scheduler written in [
 - CI Platform: [GitHub Actions](https://github.com/features/actions)
 - Build System: [Turborepo](https://turbo.build/)
 - Multi-container Tool: [Docker Compose](https://docs.docker.com/compose/)
+- Container Orchaestration: [Kubernetes](https://https://kubernetes.io/)
 
 ## Getting Started
 
@@ -86,6 +87,30 @@ docker compose up -d
 
 # Stop and remove containers
 docker compose down
+```
+
+### Run with Kubernetes
+
+To run in Kubernetes on local machine, may need to have local Kubernetes cluster, using tool such as `minikube`.
+
+Before running `minikube`, update the configmap in each Kubernetes yaml file accordingly.
+Update the configurations in `api.configmap.example.yaml` accordingly.
+Rename it to `api.configmap.yaml` (optional)
+
+```bash
+# Start minikube
+minikube start
+
+# Apply yaml files in k8s folder
+kubectl apply -f k8s
+
+# Port forwarding
+kubectl port-forward services/api 8000:8000
+kubectl port-forward services/ui 3000:3000
+
+# To access from minikube
+minikube service api --url
+minikube service ui --url
 ```
 
 # Contributing

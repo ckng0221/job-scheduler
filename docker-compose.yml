@@ -1,6 +1,4 @@
-# NOTE: The ports of internal services (eg. book, customer, payment, borrowing) are not exposed in production
-
-services:
+services: #TODO: add k8s
   # app services
   api:
     build:
@@ -77,11 +75,12 @@ services:
     build:
       context: .
       dockerfile: ./apps/Dockerfile.ui
+      args:
+        extensions: ".sh"
     env_file:
       - ./apps/ui/.env.production
     environment:
       - BACKEND_HOST_INTERNAL=http://api:8000
-      - RABBIT_MQ_HOST=amqp://rabbitmq:5672
     depends_on:
       - api
     ports:
@@ -92,7 +91,7 @@ services:
       - node-network
     restart: always
 
-  # Dependencies
+  # dependencies
   rabbitmq:
     image: rabbitmq
     # ports: # optional expose

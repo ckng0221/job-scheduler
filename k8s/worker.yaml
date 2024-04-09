@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: worker
+  name: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: ckng21/job-scheduler-worker
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          volumeMounts:
+            - mountPath: /home/blob
+              name: blob-storage
+          env:
+            - name: ADMIN_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: ADMIN_API_KEY
+                  name: worker-env
+            - name: API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: API_BASE_URL
+                  name: worker-env
+            - name: JOB_QUEUE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: JOB_QUEUE_NAME
+                  name: worker-env
+            - name: RABBIT_MQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: RABBIT_MQ_HOST
+                  name: worker-env
+            - name: SUPPORTED_EXTENSIONS
+              valueFrom:
+                configMapKeyRef:
+                  key: SUPPORTED_EXTENSIONS
+                  name: worker-env
+      volumes:
+        - name: blob-storage
+          persistentVolumeClaim:
+            claimName: blob-storage
+      restartPolicy: Always
+---
+apiVersion: v1
+data:
+  ADMIN_API_KEY: trial123
+  API_BASE_URL: http://api:8000
+  JOB_QUEUE_NAME: job_queue
+  RABBIT_MQ_HOST: amqp://rabbitmq:5672
+  SUPPORTED_EXTENSIONS: sh
+kind: ConfigMap
+metadata:
+  labels:
+    app: worker-env
+  name: worker-env

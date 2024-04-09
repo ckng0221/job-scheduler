@@ -1,4 +1,6 @@
 FROM node:alpine As builder
+ARG extensions
+ENV NEXT_PUBLIC_SUPPORTED_EXTENSIONS=${extensions}
 
 WORKDIR /app
 
@@ -22,7 +24,6 @@ COPY --from=builder /app/package.json .
 COPY --from=builder --chown=nextjs:nodejs  /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
 
 EXPOSE 3000
 

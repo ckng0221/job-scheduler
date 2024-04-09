@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  labels:
+    app: ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ui
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ui
+    spec:
+      containers:
+        - name: ui
+          image: ckng21/job-scheduler-ui:latest
+          ports:
+            - containerPort: 3000
+              # hostPort: 3000
+              protocol: TCP
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          env:
+            - name: BACKEND_HOST_INTERNAL
+              valueFrom:
+                configMapKeyRef:
+                  key: BACKEND_HOST_INTERNAL
+                  name: ui-env
+            - name: PORT
+              value: "3000"
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  labels:
+    app: ui
+spec:
+  type: NodePort
+  ports:
+    - name: "uiport"
+      port: 3000
+      targetPort: 3000
+      # nodePort: 30080 # exposed to host
+  selector:
+    app: ui
+---
+apiVersion: v1
+data:
+  BACKEND_HOST_INTERNAL: http://api:8000
+kind: ConfigMap
+metadata:
+  name: ui-env
+  labels:
+    app: ui-env
+# Note: May have issue in port forwarding

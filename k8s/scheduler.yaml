@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: scheduler
+  name: scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scheduler
+  template:
+    metadata:
+      labels:
+        app: scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: ckng21/job-scheduler-scheduler
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          env:
+            - name: ADMIN_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: ADMIN_API_KEY
+                  name: scheduler-env
+            - name: API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: API_BASE_URL
+                  name: scheduler-env
+            - name: JOB_QUEUE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: JOB_QUEUE_NAME
+                  name: scheduler-env
+            - name: RABBIT_MQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: RABBIT_MQ_HOST
+                  name: scheduler-env
+      restartPolicy: Always
+---
+apiVersion: v1
+data:
+  ADMIN_API_KEY: trial123
+  API_BASE_URL: http://api:8000
+  JOB_QUEUE_NAME: job_queue
+  RABBIT_MQ_HOST: amqp://rabbitmq:5672
+kind: ConfigMap
+metadata:
+  labels:
+    app: scheduler-env
+  name: scheduler-env

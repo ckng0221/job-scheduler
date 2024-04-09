@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: mysql
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+              hostPort: 3309
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-db
+          resources:
+            limits:
+              memory: 512Mi
+              cpu: "1"
+            requests:
+              memory: 256Mi
+              cpu: "0.2"
+          env:
+            - name: MYSQL_ALLOW_EMPTY_PASSWORD
+              value: "1"
+            - name: MYSQL_DATABASE
+              value: job-scheduler
+            - name: MYSQL_PASSWORD
+              value: dbuser123
+            - name: MYSQL_ROOT_PASSWORD
+              value: dbuser123
+            - name: MYSQL_ROOT_PASSWORD_ENCRYPTED
+              value: "false"
+            - name: MYSQL_USER
+              value: dbuser
+      restartPolicy: Always
+      volumes:
+        - name: mysql-db
+          persistentVolumeClaim:
+            claimName: mysql-db
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: mysql-db
+  name: mysql-db
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mysql
+  name: mysql
+spec:
+  type: NodePort
+  ports:
+    - name: "dbport"
+      port: 3306
+      targetPort: 3306
+      # nodePort: 30080 # exposed to host
+  selector:
+    app: mysql

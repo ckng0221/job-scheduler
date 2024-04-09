@@ -16,7 +16,7 @@ func ConnectToDb() {
 	env := os.Getenv("ENV")
 	logLevel := logger.Silent
 	if env == "development" {
-		logLevel = logger.Info
+		// logLevel = logger.Info
 	}
 
 	var err error

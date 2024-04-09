@@ -37,6 +37,7 @@ Job Scheduler is a proof of concept (POC) distributed job scheduler written in [
 - CI Platform: [GitHub Actions](https://github.com/features/actions)
 - Build System: [Turborepo](https://turbo.build/)
 - Multi-container Tool: [Docker Compose](https://docs.docker.com/compose/)
+- Container Orchaestration: [Kubernetes](https://https://kubernetes.io/)
 
 ## Getting Started
 

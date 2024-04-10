@@ -3,6 +3,7 @@ import { getCookie } from "../utils/common";
 const BACKEND_HOST = process.env.NEXT_PUBLIC_BACKEND_HOST;
 
 export interface IJob {
+  ID?: string;
   JobName: string;
   IsRecurring: boolean;
   FirstScheduledTime: Number;
@@ -10,6 +11,7 @@ export interface IJob {
   UserID: string;
   Cron: string;
   IsDisabled: boolean;
+  TaskPath?: string;
 }
 
 export interface IJobRead extends IJob {
@@ -108,5 +110,19 @@ export async function uploadTaskScript(jobId: string, file: File) {
     body: formdata,
     headers: headers,
   });
+  return res;
+}
+
+export async function readTaskScript(jobId: string) {
+  const url = `${BACKEND_HOST}/scheduler/jobs/${jobId}/task-script`;
+  const headers = new Headers();
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
+
+  const res = fetch(url, {
+    method: "GET",
+    headers: headers,
+  });
+
   return res;
 }

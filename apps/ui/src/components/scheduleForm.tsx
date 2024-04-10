@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import {
   Dispatch,
   FormEvent,
+  ReactNode,
   SetStateAction,
   SyntheticEvent,
   useEffect,
@@ -34,8 +35,16 @@ import {
   useState,
 } from "react";
 import { loginAction } from "../actions/authActions";
-import { IJob, getOneJob, submitJob, uploadTaskScript } from "../api/job";
+import {
+  IJob,
+  IJobRead,
+  getOneJob,
+  readTaskScript,
+  submitJob,
+  uploadTaskScript,
+} from "../api/job";
 import { getCookie } from "../utils/common";
+import InfoDialog from "./Dialog";
 
 function generateCronExpression({
   scheduledDatetime,
@@ -423,7 +432,7 @@ export default function ScheduleForm({
               />
             )}
 
-            <TaskFileUpload setFile={setFile} fileRef={fileRef} />
+            <TaskFileUpload setFile={setFile} fileRef={fileRef} job={job} />
 
             <Button variant="outlined" type="submit">
               Submit
@@ -716,9 +725,11 @@ function getMonthId(monthName: string) {
 }
 
 function TaskFileUpload({
+  job,
   fileRef,
   setFile,
 }: {
+  job: IJob;
   fileRef: any;
   setFile: Dispatch<any>;
 }) {
@@ -727,9 +738,48 @@ function TaskFileUpload({
   if (acceptedExts) {
     acceptedExsString = acceptedExts.split(",").sort().join(", ");
   }
+  const [openDialog, setOpenDialog] = useState(false);
+  const [scriptText, setScriptText] = useState<ReactNode>(<></>);
+
+  const currentScriptFilenameArray = job?.TaskPath?.split("/");
+  const currentScriptFilename =
+    currentScriptFilenameArray?.[currentScriptFilenameArray?.length - 1];
+  useEffect(() => {
+    async function fetchScriptText() {
+      const res = await readTaskScript(String(job?.ID));
+      if (res.ok) {
+        const script = await res.text();
+        console.log(script);
+        setScriptText(<pre className="text-sm">{script}</pre>);
+      }
+    }
+    fetchScriptText();
+  }, [job.ID]);
 
   return (
     <div className="my-4">
+      <div className="block mb-4 text-sm font-medium text-gray-900 dark:text-white">
+        <div>
+          <div>Current Script</div>
+          <div className="text-gray-500 dark:text-white">
+            <a
+              onClick={() => {
+                setOpenDialog(true);
+              }}
+              href="#"
+              className="text-blue-600 dark:text-blue-500 hover:underline"
+            >
+              {currentScriptFilename}
+            </a>
+          </div>
+          <InfoDialog
+            open={openDialog}
+            setOpen={setOpenDialog}
+            title={currentScriptFilename}
+            body={scriptText}
+          />
+        </div>
+      </div>
       <label
         className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
         htmlFor="file_input"

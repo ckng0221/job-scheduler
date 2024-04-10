@@ -38,6 +38,20 @@ export async function getUserJobs(userId: string) {
   return res;
 }
 
+export async function getOneJob(jobId: string) {
+  const url = `${BACKEND_HOST}/scheduler/jobs/${jobId}`;
+  const headers = new Headers();
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
+
+  const res = fetch(url, {
+    method: "GET",
+    headers: headers,
+  });
+
+  return res;
+}
+
 export async function submitJob(payload: IJob) {
   const url = `${BACKEND_HOST}/scheduler/jobs`;
   const headers = new Headers();
@@ -62,6 +76,20 @@ export async function updateJob(jobId: string, payload: IJobUpdate) {
   const res = fetch(url, {
     method: "PATCH",
     body: JSON.stringify(payload),
+    headers: headers,
+  });
+
+  return res;
+}
+
+export async function deleteJob(jobId: string) {
+  const url = `${BACKEND_HOST}/scheduler/jobs/${jobId}`;
+  const headers = new Headers();
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", `Bearer ${getCookie("Authorization")}` ?? "");
+
+  const res = fetch(url, {
+    method: "DELETE",
     headers: headers,
   });
 

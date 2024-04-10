@@ -22,11 +22,20 @@ import { Theme, styled, useTheme } from "@mui/material/styles";
 import { DateTimeValidationError } from "@mui/x-date-pickers";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
-import * as React from "react";
-import { loginAction } from "../actions/authActions";
-import { IJob, submitJob, uploadTaskScript } from "../api/job";
-import { getCookie } from "../utils/common";
 import { useRouter } from "next/navigation";
+import {
+  Dispatch,
+  FormEvent,
+  SetStateAction,
+  SyntheticEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { loginAction } from "../actions/authActions";
+import { IJob, getOneJob, submitJob, uploadTaskScript } from "../api/job";
+import { getCookie } from "../utils/common";
 
 function generateCronExpression({
   scheduledDatetime,
@@ -75,7 +84,43 @@ function generateCronExpression({
   return cronExpression;
 }
 
-export default function ScheduleForm({ userId }: { userId: string }) {
+function parseCronExpression(cron: string) {
+  // let weekdays: number[] = [];
+  // let monthdays: number[] = [];
+  // let months: number[] = [];
+  let triggerFrenquency = "daily";
+  const cronArray = cron.split(" ");
+  const cronMonthdays = cronArray[2];
+  const cronMonths = cronArray[3];
+  const cronWeekdays = cronArray[4];
+
+  if (cronWeekdays !== "*") {
+    triggerFrenquency = "weekly";
+  } else if (cronMonthdays !== "*") {
+    triggerFrenquency = "monthly";
+  }
+
+  // try {
+  //   const interval = cronParser.parseExpression(cron);
+  //   const fields = JSON.parse(JSON.stringify(interval.fields));
+  //   weekdays = fields.dayOfWeek;
+  //   monthdays = fields.dayOfMonth;
+  //   months = fields.month;
+  // } catch (err) {
+  //   console.error(err);
+  // }
+  return { cronWeekdays, cronMonthdays, cronMonths, triggerFrenquency };
+}
+
+export default function ScheduleForm({
+  userId,
+  jobId,
+  edit = false,
+}: {
+  userId: string;
+  jobId?: string;
+  edit?: boolean;
+}) {
   const initialJob = {
     JobName: "",
     IsRecurring: false,
@@ -85,28 +130,26 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     Cron: "",
     IsDisabled: false,
   };
-  const [job, setJob] = React.useState<IJob>(initialJob);
-  const [scheduledDatetime, setScheduledDateTime] = React.useState(
+  const [job, setJob] = useState<IJob>(initialJob);
+  const [scheduledDatetime, setScheduledDateTime] = useState(
     dayjs().add(1, "minute"),
   );
-  const [openSnackbar, setOpenSnackBar] = React.useState(false);
-  const [snackbarMessage, setSnackbarMessage] = React.useState("");
-  const [recurringFrequency, setRecurringFrequency] = React.useState("daily");
-  const [error, setError] = React.useState<DateTimeValidationError | null>(
-    null,
-  );
+  const [openSnackbar, setOpenSnackBar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState("daily");
+  const [error, setError] = useState<DateTimeValidationError | null>(null);
   // Recuring options
-  const [selectedDays, setSelectedDays] = React.useState<string[]>([]);
-  const [isEveryMonth, setIsEveryMonth] = React.useState(true);
-  const [selectedMonths, setSelectedMonths] = React.useState<string[]>([]);
-  const [selectedDates, setSelectedDates] = React.useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [isEveryMonth, setIsEveryMonth] = useState(true);
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
   // file upload
-  const [file, setFile] = React.useState<any>();
-  const fileRef = React.useRef<any>(null);
+  const [file, setFile] = useState<any>();
+  const fileRef = useRef<any>(null);
 
   const router = useRouter();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     if (queryParams.has("code")) {
       const code = queryParams.get("code") || "";
@@ -128,7 +171,39 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     }
   }, [router]);
 
-  const errorMessage = React.useMemo(() => {
+  // Fetch job
+  useEffect(() => {
+    async function fetchJob() {
+      if (jobId) {
+        const res = await getOneJob(jobId);
+        if (res.ok) {
+          const job = await res.json();
+          setJob(job);
+          if (job.IsRecurring) {
+            const {
+              cronWeekdays,
+              cronMonthdays,
+              cronMonths,
+              triggerFrenquency,
+            } = parseCronExpression(job.Cron);
+
+            setRecurringFrequency(triggerFrenquency);
+            if (triggerFrenquency == "weekly") {
+              setSelectedDays(cronWeekdays.split(","));
+            } else if (triggerFrenquency == "monthly") {
+              if (cronMonths != "*") {
+                setIsEveryMonth(false);
+                setSelectedMonths(cronMonths.split(","));
+              }
+              setSelectedDates(cronMonthdays.split(","));
+            }
+          }
+        }
+      }
+    }
+    fetchJob();
+  }, [jobId]);
+  const errorMessage = useMemo(() => {
     switch (error) {
       case "disablePast": {
         return "Date time cannot earlier than current time.";
@@ -140,7 +215,7 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     }
   }, [error]);
 
-  async function submitForm(e: React.FormEvent) {
+  async function submitForm(e: FormEvent) {
     e.preventDefault();
 
     // form validation
@@ -187,7 +262,7 @@ export default function ScheduleForm({ userId }: { userId: string }) {
       if (file && file.size > 0) {
         const res = await uploadTaskScript(data.ID, file);
         if (!res.ok) {
-          alert("Faield to upload script.");
+          alert("Failed to upload script.");
         }
       }
 
@@ -201,10 +276,7 @@ export default function ScheduleForm({ userId }: { userId: string }) {
     }
   }
 
-  const handleClose = (
-    event: React.SyntheticEvent | Event,
-    reason?: string,
-  ) => {
+  const handleClose = (event: SyntheticEvent | Event, reason?: string) => {
     if (reason === "clickaway") {
       return;
     }
@@ -284,7 +356,7 @@ export default function ScheduleForm({ userId }: { userId: string }) {
               <>
                 <div className="">
                   <FormLabel id="frequency-radio-btn">
-                    Triggger Frequency
+                    Trigger Frequency
                   </FormLabel>
                   <RadioGroup
                     row
@@ -401,7 +473,7 @@ function WeeklyOption({
   setSelectedDays,
 }: {
   selectedDays: string[];
-  setSelectedDays: React.Dispatch<React.SetStateAction<string[]>>;
+  setSelectedDays: Dispatch<SetStateAction<string[]>>;
 }) {
   function updateDays(dayId: string) {
     if (selectedDays.includes(dayId)) {
@@ -421,6 +493,7 @@ function WeeklyOption({
               control={
                 <Checkbox
                   value={day.id}
+                  checked={selectedDays.includes(String(day?.id))}
                   onChange={(e) => updateDays(e.target.value)}
                 />
               }
@@ -435,11 +508,11 @@ function WeeklyOption({
 
 interface IMonthlyProps {
   isEveryMonth: boolean;
-  setIsEveryMonth: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsEveryMonth: Dispatch<SetStateAction<boolean>>;
   selectedMonths: string[];
-  setSelectedMonths: React.Dispatch<React.SetStateAction<string[]>>;
+  setSelectedMonths: Dispatch<SetStateAction<string[]>>;
   selectedDates: string[];
-  setSelectedDates: React.Dispatch<React.SetStateAction<string[]>>;
+  setSelectedDates: Dispatch<SetStateAction<string[]>>;
 }
 
 export function MonthlyOption(props: IMonthlyProps) {
@@ -466,9 +539,9 @@ export function MonthsOption({
   setSelectedMonths,
 }: {
   isEveryMonth: boolean;
-  setIsEveryMonth: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsEveryMonth: Dispatch<SetStateAction<boolean>>;
   selectedMonths: string[];
-  setSelectedMonths: React.Dispatch<React.SetStateAction<string[]>>;
+  setSelectedMonths: Dispatch<SetStateAction<string[]>>;
 }) {
   const theme = useTheme();
   const ITEM_HEIGHT = 48;
@@ -527,6 +600,7 @@ export function MonthsOption({
           multiple
           value={selectedMonths}
           onChange={handleChange}
+          required={!isEveryMonth}
           input={<OutlinedInput id="select-multiple-chip-month" label="Chip" />}
           renderValue={(selected) => (
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
@@ -560,7 +634,7 @@ export function DatesOption({
   setSelectedDates,
 }: {
   selectedDates: string[];
-  setSelectedDates: React.Dispatch<React.SetStateAction<string[]>>;
+  setSelectedDates: Dispatch<SetStateAction<string[]>>;
 }) {
   const theme = useTheme();
   const ITEM_HEIGHT = 48;
@@ -606,6 +680,7 @@ export function DatesOption({
         <Select
           labelId="date-chip-label"
           id="multiple-chip"
+          required
           multiple
           value={selectedDates}
           onChange={handleChange}
@@ -645,7 +720,7 @@ function TaskFileUpload({
   setFile,
 }: {
   fileRef: any;
-  setFile: React.Dispatch<any>;
+  setFile: Dispatch<any>;
 }) {
   const acceptedExts = process.env.NEXT_PUBLIC_SUPPORTED_EXTENSIONS || "";
   let acceptedExsString;

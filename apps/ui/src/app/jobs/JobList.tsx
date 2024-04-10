@@ -1,14 +1,18 @@
 "use client";
 
-import { Chip, Switch } from "@mui/material";
+import { Chip, CircularProgress, IconButton, Switch } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import dayjs from "dayjs";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { IJob, getUserJobs, updateJob } from "../../api/job";
+import { IJob, deleteJob, getUserJobs, updateJob } from "../../api/job";
 import { renameKey } from "../../utils/common";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import { useRouter } from "next/navigation";
 
 export default function JobList({ userId }: { userId: string }) {
   const [jobs, setjobs] = useState<IJob[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchJobs() {
@@ -17,6 +21,7 @@ export default function JobList({ userId }: { userId: string }) {
         let jobs = await res.json();
         jobs.forEach((obj: IJob) => renameKey(obj, "ID", "id"));
         setjobs(jobs);
+        setIsLoading(false);
       } else {
         throw new Error("Failed to fetch jobs");
       }
@@ -27,7 +32,13 @@ export default function JobList({ userId }: { userId: string }) {
   return (
     <>
       <h1>Job List</h1>
-      <DataTable jobs={jobs} setJobs={setjobs} />
+      {isLoading ? (
+        <div className="p-6">
+          <CircularProgress />
+        </div>
+      ) : (
+        <DataTable jobs={jobs} setJobs={setjobs} />
+      )}
     </>
   );
 }
@@ -39,6 +50,8 @@ function DataTable({
   jobs: IJob[];
   setJobs: Dispatch<SetStateAction<IJob[]>>;
 }) {
+  const router = useRouter();
+
   const columns: GridColDef[] = [
     { field: "id", headerName: "Job ID", width: 70 },
     { field: "JobName", headerName: "Job Name", width: 130 },
@@ -113,6 +126,33 @@ function DataTable({
         return <Chip color={color} label={labelText} />;
       },
     },
+    {
+      field: "action",
+      headerName: "Action",
+      width: 130,
+      renderCell: (params) => {
+        return (
+          <>
+            <IconButton
+              aria-label="edit"
+              onClick={() => {
+                router.push(`/jobs/${params.id}`);
+              }}
+            >
+              <EditIcon color="primary" />
+            </IconButton>
+            <IconButton
+              aria-label="delete"
+              onClick={() => {
+                handleDeleteJob(String(params.id));
+              }}
+            >
+              <DeleteIcon color="error" />
+            </IconButton>
+          </>
+        );
+      },
+    },
   ];
 
   function updateEnabled(jobId: string, enabled: boolean) {
@@ -123,8 +163,16 @@ function DataTable({
     updateJob(jobId, { IsDisabled: !enabled });
   }
 
+  function handleDeleteJob(jobId: string) {
+    const confirmDelete = confirm(`Are you sure to delete Job ID: ${jobId}?`);
+    if (!confirmDelete) return;
+    deleteJob(jobId);
+    console.log("delete", jobId);
+    setJobs(jobs.filter((job: any) => job.id != jobId));
+  }
+
   return (
-    <div className="m-4" style={{ height: 800, width: "100%" }}>
+    <div className="m-4">
       <DataGrid
         rows={jobs}
         columns={columns}

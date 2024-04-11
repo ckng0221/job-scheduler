@@ -1,4 +1,4 @@
-FROM node:alpine As builder
+FROM node:20-alpine As builder
 ARG extensions
 ENV NEXT_PUBLIC_SUPPORTED_EXTENSIONS=${extensions}
 
@@ -12,7 +12,7 @@ COPY apps/ui/ .
 
 RUN npm run build
 
-FROM node:alpine as production
+FROM node:20-alpine as production
 
 WORKDIR /app
 
@@ -32,3 +32,5 @@ CMD [ "node", "server.js" ]
 
 # docker build -f ./apps/Dockerfile.ui . -t job-scheduler-ui
 # docker run -p 3000:3000 jobs-scheduler-ui
+# docker image tag job-scheduler-ui ckng21/job-scheduler-ui
+# docker image push ckng21/job-scheduler-ui

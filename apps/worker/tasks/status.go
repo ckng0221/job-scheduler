@@ -39,6 +39,7 @@ func updateNextRunTime(job models.Job) {
 		payload["NextRunTime"] = nextTime
 		fmt.Println("Next run time", nextTime2, "unix:", nextTime)
 	} else {
+		payload["NextRunTime"] = 0
 		payload["IsCompleted"] = true
 	}
 	payload["IsRunning"] = false

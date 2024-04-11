@@ -27,7 +27,24 @@ func GetAllJobs(c *gin.Context) {
 	m := make(map[string]interface{})
 
 	if userId != "" {
+		userId_Unsigned, err := strconv.ParseUint(userId, 10, 10)
+		if err != nil {
+			c.AbortWithStatus(500)
+			fmt.Println("failed to parse userId")
+			return
+		}
+		err = requireOwner(c, uint(userId_Unsigned))
+		if err != nil {
+			c.AbortWithStatus(403)
+			return
+		}
 		m["user_id"] = userId
+	} else {
+		err := requireAdmin(c)
+		if err != nil {
+			c.AbortWithStatus(403)
+			return
+		}
 	}
 	if isActive != "" {
 		if active, err := strconv.ParseBool(isActive); err == nil && active {
@@ -299,12 +316,4 @@ func UploadTaskScript(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusOK, gin.H{"filepath": blobFilePath})
-}
-
-func requireOwner(c *gin.Context, ownerId uint) error {
-	requestUser, _ := c.Get("user")
-	if requestUser.(models.User).ID != ownerId && requestUser.(models.User).Role != "admin" {
-		return errors.New("forbidden")
-	}
-	return nil
 }

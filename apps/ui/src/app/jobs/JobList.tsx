@@ -124,6 +124,12 @@ function DataTable({
       renderCell: (params) => {
         const color: any = params.value == true ? "success" : "error";
         const labelText = params.value == true ? "Yes" : "No";
+        const isRecuring = jobs.find(
+          (job: any) => job.id == params.id,
+        )?.IsRecurring;
+        if (isRecuring) {
+          return <></>;
+        }
         return <Chip color={color} label={labelText} />;
       },
     },

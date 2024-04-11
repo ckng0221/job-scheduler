@@ -148,7 +148,7 @@ export default function ScheduleForm({
   const [file, setFile] = useState<any>();
   const fileRef = useRef<any>(null);
   const [isLoading, setisLoading] = useState(true);
-
+  const [currentState, setCurrentState] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -216,7 +216,7 @@ export default function ScheduleForm({
       }
     }
     fetchJob();
-  }, [jobId, existing]);
+  }, [jobId, existing, currentState]);
   const errorMessage = useMemo(() => {
     switch (error) {
       case "disablePast": {
@@ -257,7 +257,6 @@ export default function ScheduleForm({
       IsDisabled: job.IsDisabled,
       TaskPath: job.TaskPath,
     };
-
     // update next run time for both one-time and recurring job
     payload["FirstScheduledTime"] = nextRunTimeUnix;
     payload["NextRunTime"] = nextRunTimeUnix;
@@ -283,7 +282,7 @@ export default function ScheduleForm({
 
       res = await updateJob(String(jobId), payload);
     } else {
-      // invalid action
+      // invalid action what is thi
       return;
     }
 
@@ -300,13 +299,13 @@ export default function ScheduleForm({
       if (action === "create") {
         setSnackbarMessage("Scheduled job created!");
         setJob(initialJob);
-        fileRef.current.value = null;
       } else if (action === "update") {
         setSnackbarMessage("Scheduled job updated!");
         if (file && file.size > 0) {
           // force update file
-          location.reload();
+          setCurrentState(currentState + 1);
         }
+        fileRef.current.value = null;
       }
     } else {
       setOpenSnackBar(true);

@@ -10,7 +10,7 @@ export interface IJob {
   NextRunTime: Number;
   UserID: string;
   Cron: string;
-  IsDisabled: boolean;
+  IsDisabled?: boolean;
   TaskPath?: string;
 }
 

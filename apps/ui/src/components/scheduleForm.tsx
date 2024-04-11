@@ -3,6 +3,7 @@ import {
   Button,
   Checkbox,
   Chip,
+  CircularProgress,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -16,16 +17,16 @@ import {
   Select,
   SelectChangeEvent,
   Snackbar,
+  Switch,
 } from "@mui/material";
 import Box from "@mui/material/Box";
-import { Theme, styled, useTheme } from "@mui/material/styles";
+import { Theme, useTheme } from "@mui/material/styles";
 import { DateTimeValidationError } from "@mui/x-date-pickers";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import {
   Dispatch,
-  FormEvent,
   ReactNode,
   SetStateAction,
   SyntheticEvent,
@@ -37,10 +38,10 @@ import {
 import { loginAction } from "../actions/authActions";
 import {
   IJob,
-  IJobRead,
   getOneJob,
   readTaskScript,
   submitJob,
+  updateJob,
   uploadTaskScript,
 } from "../api/job";
 import { getCookie } from "../utils/common";
@@ -109,26 +110,17 @@ function parseCronExpression(cron: string) {
     triggerFrenquency = "monthly";
   }
 
-  // try {
-  //   const interval = cronParser.parseExpression(cron);
-  //   const fields = JSON.parse(JSON.stringify(interval.fields));
-  //   weekdays = fields.dayOfWeek;
-  //   monthdays = fields.dayOfMonth;
-  //   months = fields.month;
-  // } catch (err) {
-  //   console.error(err);
-  // }
   return { cronWeekdays, cronMonthdays, cronMonths, triggerFrenquency };
 }
 
 export default function ScheduleForm({
   userId,
   jobId,
-  edit = false,
+  existing = false,
 }: {
   userId: string;
   jobId?: string;
-  edit?: boolean;
+  existing?: boolean;
 }) {
   const initialJob = {
     JobName: "",
@@ -155,6 +147,7 @@ export default function ScheduleForm({
   // file upload
   const [file, setFile] = useState<any>();
   const fileRef = useRef<any>(null);
+  const [isLoading, setisLoading] = useState(true);
 
   const router = useRouter();
 
@@ -180,14 +173,15 @@ export default function ScheduleForm({
     }
   }, [router]);
 
-  // Fetch job
+  // Fetch existing job
   useEffect(() => {
     async function fetchJob() {
-      if (jobId) {
+      if (jobId && existing) {
         const res = await getOneJob(jobId);
         if (res.ok) {
           const job = await res.json();
           setJob(job);
+          setScheduledDateTime(dayjs.unix(job.FirstScheduledTime));
           if (job.IsRecurring) {
             const {
               cronWeekdays,
@@ -202,16 +196,27 @@ export default function ScheduleForm({
             } else if (triggerFrenquency == "monthly") {
               if (cronMonths != "*") {
                 setIsEveryMonth(false);
-                setSelectedMonths(cronMonths.split(","));
+                const selectedMonthArray = cronMonths.split(",");
+                const selectedMonthStrings = selectedMonthArray.map(
+                  (monthId) => {
+                    return (
+                      months.find((month) => {
+                        return String(month.id) === monthId;
+                      })?.name || ""
+                    );
+                  },
+                );
+                setSelectedMonths(selectedMonthStrings);
               }
               setSelectedDates(cronMonthdays.split(","));
             }
           }
+          setisLoading(false);
         }
       }
     }
     fetchJob();
-  }, [jobId]);
+  }, [jobId, existing]);
   const errorMessage = useMemo(() => {
     switch (error) {
       case "disablePast": {
@@ -224,10 +229,12 @@ export default function ScheduleForm({
     }
   }, [error]);
 
-  async function submitForm(e: FormEvent) {
+  async function submitForm(e: any) {
     e.preventDefault();
+    const action: "create" | "update" = e.nativeEvent.submitter.name;
 
     // form validation
+    console.log(userId);
     if (!userId) {
       setOpenSnackBar(true);
       setSnackbarMessage("Please login first");
@@ -241,8 +248,14 @@ export default function ScheduleForm({
 
     let nextRunTimeUnix = scheduledDatetime.unix();
     const payload: IJob = {
-      ...job,
+      JobName: job.JobName,
+      IsRecurring: job.IsRecurring,
+      FirstScheduledTime: job.FirstScheduledTime,
+      NextRunTime: job.NextRunTime,
       UserID: userId,
+      Cron: job.Cron,
+      IsDisabled: job.IsDisabled,
+      TaskPath: job.TaskPath,
     };
 
     // update next run time for both one-time and recurring job
@@ -259,13 +272,21 @@ export default function ScheduleForm({
         weekdays: selectedDays,
         dates: selectedDates,
       });
-      console.log(recurringFrequency);
-      console.log(cronExpression);
 
       payload["Cron"] = cronExpression;
     }
+    let res;
+    if (action === "create") {
+      res = await submitJob(payload);
+    } else if (action === "update") {
+      console.log(payload);
 
-    const res = await submitJob(payload);
+      res = await updateJob(String(jobId), payload);
+    } else {
+      // invalid action
+      return;
+    }
+
     if (res?.ok) {
       const data = await res.json();
       if (file && file.size > 0) {
@@ -276,12 +297,24 @@ export default function ScheduleForm({
       }
 
       setOpenSnackBar(true);
-      setSnackbarMessage("Scheduled job created!");
-      setJob(initialJob);
-      fileRef.current.value = null;
+      if (action === "create") {
+        setSnackbarMessage("Scheduled job created!");
+        setJob(initialJob);
+        fileRef.current.value = null;
+      } else if (action === "update") {
+        setSnackbarMessage("Scheduled job updated!");
+        if (file && file.size > 0) {
+          // force update file
+          location.reload();
+        }
+      }
     } else {
       setOpenSnackBar(true);
-      setSnackbarMessage("Failed to create schedule job");
+      if (action === "create") {
+        setSnackbarMessage("Failed to create schedule job");
+      } else if (action === "update") {
+        setSnackbarMessage("Failed to update schedule job");
+      }
     }
   }
 
@@ -293,153 +326,176 @@ export default function ScheduleForm({
     setOpenSnackBar(false);
   };
 
-  const VisuallyHiddenInput = styled("input")({
-    clip: "rect(0 0 0 0)",
-    clipPath: "inset(50%)",
-    height: 1,
-    overflow: "hidden",
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    whiteSpace: "nowrap",
-    width: 1,
-  });
-
   return (
     <>
       <Paper elevation={3} className="p-16">
         <h1 className="font-medium text-lg mb-4">Job Scheduler</h1>
-        <form className="" onSubmit={(e) => submitForm(e)}>
-          <FormControl>
-            <div>
+        {existing && isLoading ? (
+          <CircularProgress />
+        ) : (
+          <form className="" onSubmit={(e) => submitForm(e)}>
+            <FormControl>
               <div>
-                <label
-                  htmlFor="job-name-id"
-                  className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  Job Name
-                </label>
-                <input
-                  type="text"
-                  id="job-name-id"
-                  className=" border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                  placeholder="Job Name"
-                  required
-                  value={job.JobName}
-                  onChange={(e) => setJob({ ...job, JobName: e.target.value })}
-                  onInvalid={(e) =>
-                    (e.target as HTMLInputElement).setCustomValidity(
-                      "Please enter your job name",
-                    )
-                  }
-                  onInput={(e) =>
-                    (e.target as HTMLInputElement).setCustomValidity("")
-                  }
-                />
-              </div>
-            </div>
-            <div className="m-4">
-              <FormLabel id="frequency-radio-btn">Frequency</FormLabel>
-              <RadioGroup
-                row
-                aria-labelledby="frequency-radio-btn"
-                name="row-radio-buttons-group"
-              >
-                <FormControlLabel
-                  value="one-time"
-                  control={<Radio />}
-                  label="One-time"
-                  checked={!job.IsRecurring}
-                  onChange={() => setJob({ ...job, IsRecurring: false })}
-                />
-                <FormControlLabel
-                  value="recurring"
-                  control={<Radio />}
-                  label="Recurring"
-                  checked={job.IsRecurring}
-                  onChange={() => setJob({ ...job, IsRecurring: true })}
-                />
-              </RadioGroup>
-            </div>
-            {job.IsRecurring && (
-              <>
-                <div className="">
-                  <FormLabel id="frequency-radio-btn">
-                    Trigger Frequency
-                  </FormLabel>
-                  <RadioGroup
-                    row
-                    aria-labelledby="frequency-radio-btn"
-                    name="row-radio-buttons-group"
+                <div>
+                  <label
+                    htmlFor="job-name-id"
+                    className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
                   >
-                    <FormControlLabel
-                      value="daily"
-                      control={<Radio />}
-                      label="Daily"
-                      checked={recurringFrequency == "daily"}
-                      onChange={() => setRecurringFrequency("daily")}
-                    />
-                    <FormControlLabel
-                      value="weekly"
-                      control={<Radio />}
-                      label="Weekly"
-                      checked={recurringFrequency == "weekly"}
-                      onChange={() => setRecurringFrequency("weekly")}
-                    />
-                    <FormControlLabel
-                      value="monthly"
-                      control={<Radio />}
-                      label="Monthly"
-                      checked={recurringFrequency == "monthly"}
-                      onChange={() => setRecurringFrequency("monthly")}
-                    />
-                  </RadioGroup>
+                    Job Name
+                  </label>
+                  <input
+                    type="text"
+                    id="job-name-id"
+                    className=" border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                    placeholder="Job Name"
+                    required
+                    value={job.JobName}
+                    onChange={(e) =>
+                      setJob({ ...job, JobName: e.target.value })
+                    }
+                    onInvalid={(e) =>
+                      (e.target as HTMLInputElement).setCustomValidity(
+                        "Please enter your job name",
+                      )
+                    }
+                    onInput={(e) =>
+                      (e.target as HTMLInputElement).setCustomValidity("")
+                    }
+                  />
                 </div>
-              </>
-            )}
+              </div>
+              {existing && (
+                <div>
+                  <label
+                    htmlFor="job-name-id"
+                    className="block mt-4 text-sm font-medium text-gray-900 dark:text-white"
+                  >
+                    Enabled
+                  </label>
+                  <Switch
+                    checked={!job.IsDisabled}
+                    onClick={() => {
+                      const disabled = job.IsDisabled;
+                      setJob({ ...job, IsDisabled: !disabled });
+                    }}
+                  />
+                </div>
+              )}
 
-            <FormLabel id="datetimepicker">
-              {job.IsRecurring ? "Start on" : "Scheduled on"}
-            </FormLabel>
-            <DateTimePicker
-              className="mb-4"
-              value={scheduledDatetime}
-              onChange={(e) => setScheduledDateTime(e || dayjs(""))}
-              disablePast
-              format="DD/MM/YYYY hh:mm A"
-              onError={(newError) => setError(newError)}
-              slotProps={{
-                textField: {
-                  helperText: errorMessage,
-                },
-              }}
-            />
+              <div className="m-4">
+                <FormLabel id="frequency-radio-btn">Frequency</FormLabel>
+                <RadioGroup
+                  row
+                  aria-labelledby="frequency-radio-btn"
+                  name="row-radio-buttons-group"
+                >
+                  <FormControlLabel
+                    value="one-time"
+                    control={<Radio />}
+                    label="One-time"
+                    checked={!job.IsRecurring}
+                    onChange={() => setJob({ ...job, IsRecurring: false })}
+                  />
+                  <FormControlLabel
+                    value="recurring"
+                    control={<Radio />}
+                    label="Recurring"
+                    checked={job.IsRecurring}
+                    onChange={() => setJob({ ...job, IsRecurring: true })}
+                  />
+                </RadioGroup>
+              </div>
+              {job.IsRecurring && (
+                <>
+                  <div className="">
+                    <FormLabel id="frequency-radio-btn">
+                      Trigger Frequency
+                    </FormLabel>
+                    <RadioGroup
+                      row
+                      aria-labelledby="frequency-radio-btn"
+                      name="row-radio-buttons-group"
+                    >
+                      <FormControlLabel
+                        value="daily"
+                        control={<Radio />}
+                        label="Daily"
+                        checked={recurringFrequency == "daily"}
+                        onChange={() => setRecurringFrequency("daily")}
+                      />
+                      <FormControlLabel
+                        value="weekly"
+                        control={<Radio />}
+                        label="Weekly"
+                        checked={recurringFrequency == "weekly"}
+                        onChange={() => setRecurringFrequency("weekly")}
+                      />
+                      <FormControlLabel
+                        value="monthly"
+                        control={<Radio />}
+                        label="Monthly"
+                        checked={recurringFrequency == "monthly"}
+                        onChange={() => setRecurringFrequency("monthly")}
+                      />
+                    </RadioGroup>
+                  </div>
+                </>
+              )}
 
-            {recurringFrequency == "weekly" && job.IsRecurring && (
-              <WeeklyOption
-                selectedDays={selectedDays}
-                setSelectedDays={setSelectedDays}
+              <FormLabel id="datetimepicker">
+                {job.IsRecurring ? "Start on" : "Scheduled on"}
+              </FormLabel>
+              <DateTimePicker
+                className="mb-4"
+                value={scheduledDatetime}
+                onChange={(e) => setScheduledDateTime(e || dayjs(""))}
+                disablePast
+                format="DD/MM/YYYY hh:mm A"
+                onError={(newError) => setError(newError)}
+                slotProps={{
+                  textField: {
+                    helperText: errorMessage,
+                  },
+                }}
               />
-            )}
-            {recurringFrequency == "monthly" && job.IsRecurring && (
-              <MonthlyOption
-                isEveryMonth={isEveryMonth}
-                setIsEveryMonth={setIsEveryMonth}
-                selectedMonths={selectedMonths}
-                setSelectedMonths={setSelectedMonths}
-                selectedDates={selectedDates}
-                setSelectedDates={setSelectedDates}
+
+              {recurringFrequency == "weekly" && job.IsRecurring && (
+                <WeeklyOption
+                  selectedDays={selectedDays}
+                  setSelectedDays={setSelectedDays}
+                />
+              )}
+              {recurringFrequency == "monthly" && job.IsRecurring && (
+                <MonthlyOption
+                  isEveryMonth={isEveryMonth}
+                  setIsEveryMonth={setIsEveryMonth}
+                  selectedMonths={selectedMonths}
+                  setSelectedMonths={setSelectedMonths}
+                  selectedDates={selectedDates}
+                  setSelectedDates={setSelectedDates}
+                />
+              )}
+
+              <TaskFileUpload
+                setFile={setFile}
+                fileRef={fileRef}
+                job={job}
+                existing={existing}
               />
-            )}
-
-            <TaskFileUpload setFile={setFile} fileRef={fileRef} job={job} />
-
-            <Button variant="outlined" type="submit">
-              Submit
-            </Button>
-          </FormControl>
-        </form>
+              {existing ? (
+                <Button variant="outlined" type="submit" name="update">
+                  Update
+                </Button>
+              ) : (
+                <Button variant="outlined" type="submit" name="create">
+                  Create
+                </Button>
+              )}
+            </FormControl>
+          </form>
+        )}
       </Paper>
+
       <Snackbar
         open={openSnackbar}
         autoHideDuration={3000}
@@ -728,10 +784,12 @@ function TaskFileUpload({
   job,
   fileRef,
   setFile,
+  existing = false,
 }: {
   job: IJob;
   fileRef: any;
   setFile: Dispatch<any>;
+  existing?: boolean;
 }) {
   const acceptedExts = process.env.NEXT_PUBLIC_SUPPORTED_EXTENSIONS || "";
   let acceptedExsString;
@@ -741,15 +799,12 @@ function TaskFileUpload({
   const [openDialog, setOpenDialog] = useState(false);
   const [scriptText, setScriptText] = useState<ReactNode>(<></>);
 
-  const currentScriptFilenameArray = job?.TaskPath?.split("/");
-  const currentScriptFilename =
-    currentScriptFilenameArray?.[currentScriptFilenameArray?.length - 1];
+  const currentScriptFilename = getScriptFilename(job?.TaskPath || "");
   useEffect(() => {
     async function fetchScriptText() {
       const res = await readTaskScript(String(job?.ID));
       if (res.ok) {
         const script = await res.text();
-        console.log(script);
         setScriptText(<pre className="text-sm">{script}</pre>);
       }
     }
@@ -759,26 +814,28 @@ function TaskFileUpload({
   return (
     <div className="my-4">
       <div className="block mb-4 text-sm font-medium text-gray-900 dark:text-white">
-        <div>
-          <div>Current Script</div>
-          <div className="text-gray-500 dark:text-white">
-            <a
-              onClick={() => {
-                setOpenDialog(true);
-              }}
-              href="#"
-              className="text-blue-600 dark:text-blue-500 hover:underline"
-            >
-              {currentScriptFilename}
-            </a>
+        {existing && (
+          <div>
+            <div>Current Script</div>
+            <div className="text-gray-500 dark:text-white">
+              <a
+                onClick={() => {
+                  setOpenDialog(true);
+                }}
+                href="#"
+                className="text-blue-600 dark:text-blue-500 hover:underline"
+              >
+                {currentScriptFilename}
+              </a>
+            </div>
+            <InfoDialog
+              open={openDialog}
+              setOpen={setOpenDialog}
+              title={currentScriptFilename}
+              body={scriptText}
+            />
           </div>
-          <InfoDialog
-            open={openDialog}
-            setOpen={setOpenDialog}
-            title={currentScriptFilename}
-            body={scriptText}
-          />
-        </div>
+        )}
       </div>
       <label
         className="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
@@ -787,7 +844,7 @@ function TaskFileUpload({
         Upload Task Script
       </label>
       <input
-        required
+        required={!existing}
         className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
         id="file_input"
         name="task script"
@@ -804,4 +861,10 @@ function TaskFileUpload({
       </p>
     </div>
   );
+}
+function getScriptFilename(taskPath: string) {
+  const currentScriptFilenameArray = taskPath.split("/");
+  const currentScriptFilename =
+    currentScriptFilenameArray?.[currentScriptFilenameArray?.length - 1];
+  return currentScriptFilename;
 }

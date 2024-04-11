@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { DateProvider } from "./providers";
 import NavBar from "../components/NavBar";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
             <>
               <NavBar />
               {children}
+              <Toaster />
             </>
           </body>
         </html>

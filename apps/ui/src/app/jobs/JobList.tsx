@@ -1,14 +1,15 @@
 "use client";
 
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import { Chip, CircularProgress, IconButton, Switch } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import dayjs from "dayjs";
+import { useRouter } from "next/navigation";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 import { IJob, deleteJob, getUserJobs, updateJob } from "../../api/job";
 import { renameKey } from "../../utils/common";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import { useRouter } from "next/navigation";
 
 export default function JobList({ userId }: { userId: string }) {
   const [jobs, setjobs] = useState<IJob[]>([]);
@@ -155,12 +156,15 @@ function DataTable({
     },
   ];
 
-  function updateEnabled(jobId: string, enabled: boolean) {
+  async function updateEnabled(jobId: string, enabled: boolean) {
     const idx = jobs.findIndex((job: any) => job.id == jobId);
     jobs[idx].IsDisabled = !enabled;
     setJobs(jobs);
-    console.log("isDisabled", !enabled);
-    updateJob(jobId, { IsDisabled: !enabled });
+    const res = await updateJob(jobId, { IsDisabled: !enabled });
+    if (res.ok) {
+      const enabledText = enabled ? "Enabled" : "Disabled";
+      toast.success(`${enabledText} job ID: ${jobId}`);
+    }
   }
 
   function handleDeleteJob(jobId: string) {

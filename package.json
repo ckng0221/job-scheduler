@@ -12,7 +12,8 @@
     "start": "turbo start",
     "lint": "turbo lint",
     "test": "turbo test",
-    "format": "prettier . --write"
+    "format": "prettier . --write",
+    "clear-blob": "rm -r blob/*"
   },
   "keywords": [],
   "author": "",

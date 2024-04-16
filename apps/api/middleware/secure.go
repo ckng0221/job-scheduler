@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"os"
 	"strings"
 
 	"job-scheduler/utils"
@@ -12,11 +13,14 @@ import (
 func SecureMiddleware() gin.HandlerFunc {
 	allowedHosts := utils.Getenv("SERVER_ALLOWED_HOSTS", "localhost:8000")
 	allowedHostsSlice := strings.Split(allowedHosts, ",")
-	// fmt.Println("host", allowedHostsSlice)
 
+	// Disable security on development mode
+	isDevelopment := os.Getenv("ENV") == "development"
+
+	// NOTE: uncommnet SSL config when haivng https site
 	return secure.New(secure.Config{
 		AllowedHosts: allowedHostsSlice,
-		// SSLRedirect: true,
+		// SSLRedirect:  true,
 		// SSLHost:               "localhost:8000",
 		STSSeconds:            315360000,
 		STSIncludeSubdomains:  true,
@@ -27,5 +31,6 @@ func SecureMiddleware() gin.HandlerFunc {
 		IENoOpen:              true,
 		ReferrerPolicy:        "strict-origin-when-cross-origin",
 		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
+		IsDevelopment:         isDevelopment,
 	})
 }

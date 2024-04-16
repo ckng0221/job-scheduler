@@ -1,17 +1,14 @@
 package middleware
 
 import (
-	"os"
+	"job-scheduler/utils"
 
 	"github.com/gin-gonic/gin"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
 
-	var corsAllowedOrigin = os.Getenv("CORS_ALLOWED_ORIGIN")
-	if corsAllowedOrigin == "" {
-		corsAllowedOrigin = "http://localhost:3000"
-	}
+	corsAllowedOrigin := utils.Getenv("CORS_ALLOWED_ORIGIN", "http://localhost:3000")
 
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", corsAllowedOrigin)

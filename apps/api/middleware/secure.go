@@ -1,18 +1,16 @@
 package middleware
 
 import (
-	"os"
 	"strings"
+
+	"job-scheduler/utils"
 
 	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
 )
 
 func SecureMiddleware() gin.HandlerFunc {
-	allowedHosts := os.Getenv("SERVER_ALLOWED_HOSTS")
-	if allowedHosts == "" {
-		allowedHosts = "localhost:8000"
-	}
+	allowedHosts := utils.Getenv("SERVER_ALLOWED_HOSTS", "localhost:8000")
 	allowedHostsSlice := strings.Split(allowedHosts, ",")
 	// fmt.Println("host", allowedHostsSlice)
 

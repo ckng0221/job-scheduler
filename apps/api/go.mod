@@ -16,6 +16,8 @@ require (
 
 require (
 	github.com/chenzhuoyu/iasm v0.9.1 // indirect
+	github.com/gin-contrib/cors v1.7.1 // indirect
+	github.com/gin-contrib/gzip v1.0.0 // indirect
 	github.com/gin-contrib/secure v1.0.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 )

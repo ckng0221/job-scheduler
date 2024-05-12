@@ -18,6 +18,8 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.SecureMiddleware())
+	r.Use(middleware.GzipCompresion())
 
 	r.GET("/", func(c *gin.Context) {
 		c.String(200, "Hello Job API")

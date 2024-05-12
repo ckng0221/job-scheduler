@@ -12,12 +12,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"gorm.io/gorm"
 )
 
 func CheckFileExists(filePath string) bool {
@@ -38,33 +35,22 @@ func LoadEnv(requiredEnv []string) {
 	}
 }
 
+// Get string from environmnet variable.
+// If empty, assign the value with the fallback string.
+func Getenv(key, fallback string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		value = fallback
+	}
+	return value
+}
+
 func ConvertStructToMap(obj interface{}) (map[string]interface{}, error) {
 	var objInterface map[string]interface{}
 	objJson, err := json.Marshal(obj)
 
 	json.Unmarshal(objJson, &objInterface)
 	return objInterface, err
-}
-
-func Paginate(c *gin.Context) func(db *gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		pageString := c.Query("page")
-		pageSizeString := c.Query("page-size")
-		page, _ := strconv.Atoi(pageString)
-		pageSize, _ := strconv.Atoi(pageSizeString)
-
-		if page <= 0 {
-			page = 1
-		}
-
-		switch {
-		case pageSize <= 0:
-			pageSize = 50
-		}
-
-		offset := (page - 1) * pageSize
-		return db.Offset(offset).Limit(pageSize)
-	}
 }
 
 func GetUnixMinuteRange(t time.Time) (time.Time, time.Time) {

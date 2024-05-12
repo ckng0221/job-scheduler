@@ -10,6 +10,8 @@ import (
 )
 
 func TestRoutes(t *testing.T) {
+	t.Setenv("ENV", "test")
+
 	router := routes.SetupRouter()
 
 	w := httptest.NewRecorder()

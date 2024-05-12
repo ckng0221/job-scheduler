@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"os"
+	"slices"
 	"strings"
 
 	"job-scheduler/utils"
@@ -14,7 +16,7 @@ func SecureMiddleware() gin.HandlerFunc {
 	allowedHostsSlice := strings.Split(allowedHosts, ",")
 
 	// Disable security on development mode
-	// isDevelopment := os.Getenv("ENV") == "development"
+	isDevelopment := slices.Contains([]string{"development", "test"}, os.Getenv("ENV"))
 
 	// NOTE: uncommnet SSL config when haivng https site
 	return secure.New(secure.Config{
@@ -30,6 +32,6 @@ func SecureMiddleware() gin.HandlerFunc {
 		IENoOpen:              true,
 		ReferrerPolicy:        "strict-origin-when-cross-origin",
 		SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-		// IsDevelopment:         isDevelopment,
+		IsDevelopment:         isDevelopment,
 	})
 }
